@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>GIF 채팅방</title>
+</head>
+<body>
+<div>F12를 눌러 console 탭과 network 탭을 확인하세요.</div>
+<script src='/socket.io/socket.io.js'></script>
+<script>
+  const socket = new io.connect('http://localhost:5000', {path:'/socket.io'});
+
+  socket.on('news', function(data){
+    console.log(`클라이언트: 서버 news 이벤트 수신: ${data}`);
+    console.log(`클라이언트: replay 이벤트 송신: Hello Node.JS`);
+    socket.emit('reply', 'Hello Node.JS');
+  });
+</script>
+</body>
+</html>

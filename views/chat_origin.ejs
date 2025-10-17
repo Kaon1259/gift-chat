@@ -1,0 +1,201 @@
+<%- include('layouts/layout', { title: (typeof title !== 'undefined' ? title : 'GIF 채팅방') }) %>
+
+<style>
+  /* ⭐️ socket-id-display 클래스에 커서 스타일 추가 */
+  .socket-id-display {
+    cursor: pointer; /* 마우스 오버 시 손 모양 커서로 변경 */
+    text-decoration: underline; /* 클릭 가능한 요소임을 나타내기 위해 밑줄 추가 */
+    /* 기타 스타일: 글꼴 굵기 등 */
+    font-weight: bold;
+    display: inline-block; /* div 내부에서 인라인 요소처럼 작동하게 함 */
+    margin-right: 5px;
+  }
+</style>
+
+<h1><%= title %></h1>
+<a href="/" id="exit-btn">방 나가기</a>
+
+<fieldset>
+  <legend>채팅 내용</legend>
+  <div id="chat-list">
+    <% chats.forEach(function(chat) { %>
+      <% if (chat.user === user) { %>
+        <!-- 색상 값은 따옴표 없이 -->
+        <div class="mine">
+          <div><%= chat.user %></div>
+          <% if (chat.gif) { %>
+            <img src="/gif/<%= chat.gif %>">
+          <% } else { %>
+            <div><%= chat.chat %></div>
+          <% } %>
+        </div>
+      <% } else if (chat.user === 'system') { %>
+        <div class="system">
+          <div><%= chat.chat %></div>
+        </div>
+      <% } else { %>
+        <!-- 여기도 동일하게 따옴표 없이 -->
+        <div class="other">
+          <div><%= chat.user %></div>
+          <% if (chat.gif) { %>
+            <img src="/gif/<%= chat.gif %>">
+          <% } else { %>
+            <div><%= chat.chat %></div>
+          <% } %>
+        </div>
+      <% } %>
+    <% }); %>
+  </div>
+</fieldset>
+
+<form action="/chat" id="chat-form" method="post" enctype="multipart/form-data">
+  <label for="gif">GIF 올리기</label>
+  <input type="file" id="gif" name="gif" accept="image/gif">
+  <input type="text" id="chat" name="chat">
+  <button type="submit">전송</button>
+</form>
+
+<form action="/broadcastchat" id="broadcastchat-form" method="post" enctype="multipart/form-data">
+  <label>외치기</label>
+  <input type="text" id="broadcastchat-input" name="chat">
+  <button type="submit">전송</button>
+</form>
+
+<form action="/whisperchat" id="whisperchat-form" method="post" style="display: none; margin-top: 10px; border: 1px solid #ccc; padding: 10px;">
+  <legend>귓속말 보내기</legend>
+  <label for="whisper-target-display">대상:</label>
+  <input type="hidden" id="whisper-target-socketid" name="targetSocketId"> 
+  <span id="whisper-target-display" style="font-weight: bold; margin-right: 10px;"></span>
+  
+  <input type="text" id="whisper-chat-input" name="chat" placeholder="귓속말 내용">
+  <button type="submit">귓속말 전송</button>
+  <button type="button" id="whisper-cancel-btn">취소</button>
+</form>
+
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  // 같은 오리진이면 호스트/포트 생략 권장
+  const socket = io('/chat', { path: '/socket.io' });
+
+  // 연결 완료 후 join을 보내는 게 안전
+  socket.on('connect', () => {
+    const roomId = new URL(location).pathname.split('/').at(-1);
+    socket.emit('join', roomId);
+  });
+
+  socket.on('join', function (data) {
+    const div = document.createElement('div');
+    div.classList.add('system');
+    const chat = document.createElement('div');
+    chat.textContent = data.chat;
+    div.appendChild(chat);
+    document.querySelector('#chat-list').appendChild(div);
+  });
+
+  socket.on('exit', function (data) {
+    const div = document.createElement('div');
+    div.classList.add('system');
+    const chat = document.createElement('div');
+    chat.textContent = data.chat;
+    div.appendChild(chat);
+    document.querySelector('#chat-list').appendChild(div);
+  });
+
+  socket.on('chat', function (data) {
+    // data = { chat: {...}, socketId: '...' }
+    const doc = data.chat || data; // 혹시 서버가 문서만 보낼 경우 대비
+
+    const div = document.createElement('div');
+
+    // 내 메시지 판별: socket.id와 payload의 socketId 비교(선택)
+    const isMine = typeof socket !== 'undefined' && data.socketId && socket.id === data.socketId;
+    div.classList.add(isMine ? 'mine' : 'other');
+
+    const name = document.createElement('div');
+    //name.textContent = doc.user; // ← 기존 data.user → doc.user
+    name.textContent = `(${data.socketId})`; // ✅ socket.id 표시
+    div.appendChild(name);
+
+    if (doc.chat) {
+      const chat = document.createElement('div');
+      chat.textContent = doc.chat; // ← 기존 data.chat → doc.chat
+      div.appendChild(chat);
+    } else if (doc.gif) {
+      const gif = document.createElement('img');
+      gif.src = '/gif/' + doc.gif; // ← 기존 data.gif → doc.gif
+      div.appendChild(gif);
+    }
+
+    // 색상 적용: user 필드가 '색상코드'라면 그대로, '유저명'이라면 별도 color 필드를 쓰세요.
+    if (/^#|rgb|hsl/.test(doc.user)) {
+      div.style.color = doc.user;     // user가 색상코드인 구조라면
+    }
+    if (doc.color) {
+      div.style.color = doc.color;    // color 필드를 따로 쓴다면
+    }
+
+    document.querySelector('#chat-list').appendChild(div);
+  });
+
+  socket.on('broadcastchat', function (data) {
+    const div = document.createElement('div');
+    if (data.user === '<%= user %>') {
+      div.classList.add('mine');
+    } else {
+      div.classList.add('other');
+    }
+
+    const name = document.createElement('div');
+    name.textContent = data.user;
+    div.appendChild(name);
+
+    if (data.chat) {
+      const chat = document.createElement('div');
+      chat.textContent = data.chat;
+      div.appendChild(chat);
+    } else {
+      const gif = document.createElement('img');
+      gif.src = '/gif/' + data.gif;
+      div.appendChild(gif);
+    }
+
+    // 런타임에서도 색상 적용 (서버에서 내려온 실사용자 색상)
+    if (data.user) div.style.color = data.user;
+
+    document.querySelector('#chat-list').appendChild(div);
+  });
+
+  document.querySelector('#chat-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (e.target.chat.value) {
+      axios.post('/room/<%= room._id %>/chat', {
+        chat: this.chat.value,
+      })
+      .then(() => { e.target.chat.value = ''; })
+      .catch((err) => { console.error(err); });
+    }
+  });
+
+  document.querySelector('#broadcastchat-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (e.target.chat.value) {
+      axios.post('/room/<%= room._id %>/broadcastchat', {
+        chat: this.chat.value,
+      })
+      .then(() => { e.target.chat.value = ''; })
+      .catch((err) => { console.error(err); });
+    }
+  });
+
+  document.querySelector('#gif').addEventListener('change', function (e) {
+    const formData = new FormData();
+
+    if (e.target.files && e.target.files[0]) {
+      formData.append('gif', e.target.files[0]);
+      axios.post('/room/<%= room._id %>/gif', formData)
+        .then(() => { e.target.value = null; })
+        .catch((err) => { console.error(err); });
+    }
+  });
+</script>
