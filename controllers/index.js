@@ -36,7 +36,8 @@ exports.createRoom = async(req, res, next)=>{
         const newRoom = await Room.create({
             title: title,
             max : max,
-            owner: req.session.color,
+            owner: req.user.nick, //req.session.color,
+            ownerId: req.user._id,
             password: password,
         });
 
@@ -115,12 +116,21 @@ exports.removeRoom = async(req, res, next) =>{
 
 exports.sendChat = async(req, res, next)=>{
     try{
+        const roomId = req.params.id;
+        const nick = req.user.nick;
+        const userId = req.user._id;
+        const color = req.session.color;
+        const chatData = req.body.chat;
+
+        console.log(`sendChat; ${nick} : ${userId}`);
+
         const chat = await Chat.create({
-            room: req.params.id,
-            user: res.locals.user.nick,
-            color: req.session.color,
+            room: roomId,
+            user: nick,
+            userId: userId,
+            color: color,
             chatType: 'local',
-            chat: req.body.chat,
+            chat: chatData,
         });
 
         console.log(`sendChat: ${req.params.id} : ${req.body.chat}, color:${chat.color} socketId:${req.session.socketId}`);
@@ -134,12 +144,19 @@ exports.sendChat = async(req, res, next)=>{
 
 exports.broadcastChat = async(req, res, next)=>{
     try{
+        const roomId = req.params.id;
+        const nick = req.user.nick;
+        const userId = req.user._id;
+        const color = req.session.color;
+        const chatData = req.body.chat;
+
         const chat = await Chat.create({
-            room: req.params.id,
-            user: res.locals.user.nick, 
-            color: req.session.color,
+            room: roomId,
+            user: nick,
+            userId: userId,
+            color: color,
             chatType: 'broadcast',
-            chat: req.body.chat,
+            chat: chatData,
         });
 
         req.app.get('io').of('/chat').emit('broadcastchat', chat);
@@ -152,12 +169,20 @@ exports.broadcastChat = async(req, res, next)=>{
 
 exports.sendGif = async(req, res, next) =>{
     try{
+        const roomId = req.params.id;
+        const nick = req.user.nick;
+        const userId = req.user._id;
+        const color = req.session.color;
+        const chatData = req.body.chat;
+        const fileName = req.file.filename;
+
         const chat = await Chat.create({
-            room: req.params.id,
-            user: res.locals.user.nick, 
-            color: req.session.color,
-            chat: req.body.chat,
-            gif: req.file.filename,
+            room: roomId,
+            user: nick,
+            userId: userId,
+            color: color,
+            chat: chatData,
+            gif: fileName,
         });
 
         console.log(`sendGif : ${req.params.id} : ${req.file.filename}`);
@@ -172,14 +197,21 @@ exports.sendGif = async(req, res, next) =>{
 exports.whisperChat = async(req, res, next)=>{
     try{
         const { targetSocketId, targetSocketUser, sourceSocketUser} = req.body;
+
+        const user = req.user ? req.user : res.locals.user;
+        const roomId = req.params.id;
+        const nick = user.nick;
+        const userId = user._id;
+        const color = req.session.color;
         const chatData = req.body.chat;
 
-        console.log(`whisperChat: ${chatData} : from: ${req.user.nick} -> to:${sourceSocketUser}`);
+        console.log(`whisperChat: ${chatData} : from: ${sourceSocketUser} : ${nick}-> to:${targetSocketUser}`);
 
         const chat = await Chat.create({
-            room: req.params.id,
-            user: sourceSocketUser, 
-            color: req.session.color,
+            room: roomId,
+            user: targetSocketUser,
+            userId: userId,
+            color: color,
             chatType: 'whisper',
             from: sourceSocketUser,  //임시
             chat: chatData,

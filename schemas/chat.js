@@ -12,6 +12,10 @@ const chatSchema = new Schema({
             type: String,
             required: true,
         },
+        userId:{
+            type: String,
+            required: false,
+        },
         color: {
             type: String,
             required: true,

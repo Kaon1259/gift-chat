@@ -198,6 +198,7 @@
     chatList.scrollTop = chatList.scrollHeight;
   });
 
+  const whisperTargetUserInput = document.querySelector('#whisper-target-user');
   
   function openWhisperForm(targetId, fromUser) {
     if (!targetId) return;
@@ -209,6 +210,9 @@
     whisperTargetSocketId.value = targetId;
     whisperTargetDisplay.textContent = fromUser ? `${fromUser} (${shortSock})` : shortSock;
     whisperForm.style.display = 'grid';
+
+    whisperTargetUserInput.value = fromUser || '';
+
     whisperChatInput.focus();
   }
 
