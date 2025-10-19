@@ -1,17 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title><%= title %></title>
+  <title><%= (typeof title !== 'undefined' && title) ? title : 'GIF Chat' %></title>
   <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>
-  <% if (typeof content !== 'undefined') { %>
-    <%- content %>
-  <% } %>
+  <header>
+    <!-- 상단 바 (상태/알림/프로필 간단 표시) -->
+    <div class="topbar">
+      <% if (typeof user !== 'undefined' && user) { %>
+        <span class="topbar-text">
+          안녕하세요, <strong><%= user.nick || user.email %></strong> 님 😊
+        </span>
+      <% } else { %>
+        <span class="topbar-text">GIF Chat에 오신 것을 환영합니다 🎉</span>
+      <% } %>
+    </div>
 
-  <% if (typeof script !== 'undefined') { %>
-    <%- script %>
-  <% } %>
+    <!-- 메뉴 바 -->
+    <nav class="navbar">
+      <% if (typeof user !== 'undefined' && user) { %>
+        <!-- ✅ 로그인 상태: 회원가입 + 로그아웃 -->
+        <a href="/auth/join">회원가입</a>
+        <a href="/auth/logout">로그아웃</a>
+      <% } else { %>
+        <!-- ✅ 비로그인 상태: 홈 / 로그인 / 회원가입 -->
+        <a href="/">홈</a>
+        <a href="/auth/login">로그인</a>
+        <a href="/auth/join">회원가입</a>
+      <% } %>
+    </nav>
+  </header>
+
+  <main class="container">
+    <%- body %>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 GIF Chat</p>
+  </footer>
 </body>
 </html>

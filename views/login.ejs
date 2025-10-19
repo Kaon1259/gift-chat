@@ -1,0 +1,112 @@
+<% /* 페이지 타이틀은 라우터에서 넘기는 걸 권장: res.render('login', { title: '로그인' }) */ %>
+
+<section class="container">
+  <% if (user && user.id) { %>
+    <div class="profile-wrap" style="display:flex;align-items:center;gap:10px;">
+      <span class="user-name">안녕하세요! <%= user.nick %>님</span>
+      <a href="/auth/logout" class="btn">로그아웃</a>
+    </div>
+
+  <% } else { %>
+    <div class="timeline">
+      <form action="/auth/login" id="login-form" method="post" style="width:100%;max-width:400px;">
+        <h2 style="text-align:center;margin-bottom:16px;">NodeBird 계정으로 로그인하세요.</h2>
+
+        <div class="input-group">
+          <label for="email" style="width:200px;display:inline-block;">이메일</label>
+          <input id="email" type="email" name="email" required autofocus>
+        </div>
+
+        <div class="input-group">
+          <label for="password" style="width:200px;display:inline-block;">비밀번호</label>
+          <input id="password" type="password" name="password" required>
+        </div>
+
+        <button id="login" type="submit" class="btn btn-primary" style="width:100%;">로그인</button>
+      </form>
+    </div>
+
+    <script>
+      (function () {
+        const url = new URL(location.href);
+        const err = url.searchParams.get('error');
+        if (err) alert(err);
+      })();
+    </script>
+  <% } %>
+</section>
+
+<script>
+  (function () {
+    const form = document.getElementById('domain-form');
+    if (!form) return;
+
+    const hostInput = document.getElementById('host');
+    const errorBox = document.getElementById('domain-error');
+
+    // 라벨 1~63, 전체 253, 하이픈 시작/끝 금지, 서브도메인/푸니코드 허용
+    const domainRegex =
+      /^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+(?:[A-Za-z]{2,}|xn--[A-Za-z0-9-]{2,})\.?$/;
+
+    function normalizeHost(raw) {
+      if (!raw) return '';
+      let s = String(raw).trim().toLowerCase();
+      s = s.replace(/^[a-z]+:\/\//i, ''); // 프로토콜 제거
+      s = s.replace(/\/.*$/, '');         // 경로 제거
+      s = s.replace(/:.+$/, '');          // 포트 제거
+      return s;
+    }
+
+    function getSelectedType() {
+      const nodes = form.querySelectorAll('input[name="type"]');
+      for (const n of nodes) if (n.checked) return n.value;
+      return '';
+    }
+
+    function showError(msg) {
+      errorBox.textContent = msg;
+      errorBox.style.display = 'block';
+    }
+    function clearError() {
+      errorBox.textContent = '';
+      errorBox.style.display = 'none';
+    }
+
+    hostInput.addEventListener('blur', () => {
+      const normalized = normalizeHost(hostInput.value);
+      hostInput.value = normalized;
+      clearError();
+      if (normalized && !domainRegex.test(normalized)) {
+        showError('유효한 도메인 형식이 아닙니다. 예: example.com, api.example.co.kr');
+      }
+    });
+
+    form.addEventListener('submit', (e) => {
+      clearError();
+
+      const type = getSelectedType();
+      if (!type) {
+        e.preventDefault();
+        showError('도메인 타입(무료/프리미엄)을 선택해 주세요.');
+        return;
+      }
+
+      const normalized = normalizeHost(hostInput.value);
+      hostInput.value = normalized;
+
+      if (!normalized) {
+        e.preventDefault();
+        showError('도메인을 입력해 주세요.');
+        hostInput.focus();
+        return;
+      }
+
+      if (!domainRegex.test(normalized)) {
+        e.preventDefault();
+        showError('유효한 도메인 형식이 아닙니다. http/https, 포트, 경로를 제외한 순수 도메인을 입력하세요.');
+        hostInput.focus();
+        return;
+      }
+    });
+  })();
+</script>

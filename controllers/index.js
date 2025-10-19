@@ -1,7 +1,18 @@
 const path = require('path');
-
 const Room = require(path.join(__dirname, '..', 'schemas', 'room'));
 const Chat = require(path.join(__dirname, '..', 'schemas', 'chat'));
+
+
+exports.renderIndex = async(req, res, next) =>{
+
+    if(req.isAuthenticated && req.isAuthenticated()){
+        console.log(`로그인되어 메인페이지로 전환합니다.`);
+        return exports.renderMain(req, res, next);
+    }
+    else{
+        return res.render('index', {title: 'GIF 채팅 - 홈'});
+    }
+}
 
 exports.renderMain = async(req, res, next)=> {
     try{
@@ -67,14 +78,18 @@ exports.enterRoom = async(req, res, next) => {
         //get chatting messages...
         const chats = await Chat.find({ room: room._id }).sort('createdAt');
         
-        const userColor =  req.session.color; //generateRandomColor();
+        const userColor =  req.session.color; 
+        const nick = req.user.nick;
+        
         return res.render('chat', {
             room,
             title: room.title,
             max: room.max,
             createdAt: new Date(room.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
             chats,
-            user: userColor,
+            nick:  nick,
+            color: userColor,
+            // user:,
         });
 
     }catch(err){
@@ -102,11 +117,12 @@ exports.sendChat = async(req, res, next)=>{
     try{
         const chat = await Chat.create({
             room: req.params.id,
-            user: req.session.color,
+            user: res.locals.user.nick,
+            color: req.session.color,
             chat: req.body.chat,
         });
 
-        console.log(`sendChat: ${req.params.id} : ${req.body.chat}, color:${chat.user} socketId:${req.session.socketId}`);
+        console.log(`sendChat: ${req.params.id} : ${req.body.chat}, color:${chat.color} socketId:${req.session.socketId}`);
         req.app.get('io').of('/chat').to(req.params.id).emit('chat', {chat, socketId: req.session.socketId || null,});
         res.send('ok');
     }catch(err){
@@ -119,7 +135,8 @@ exports.broadcastChat = async(req, res, next)=>{
     try{
         const chat = await Chat.create({
             room: req.params.id,
-            user: req.session.color, //generateRandomColor(),
+            user: res.locals.user.nick, 
+            color: req.session.color,
             chat: req.body.chat,
         });
 
@@ -135,7 +152,9 @@ exports.sendGif = async(req, res, next) =>{
     try{
         const chat = await Chat.create({
             room: req.params.id,
-            user: req.session.color, //generateRandomColor(),
+            user: res.locals.user.nick, 
+            color: req.session.color,
+            chat: req.body.chat,
             gif: req.file.filename,
         });
 
@@ -155,11 +174,15 @@ exports.sendGif = async(req, res, next) =>{
 
 exports.whisperChat = async(req, res, next)=>{
     try{
-        const { targetSocketId, chatData} = req.body;
+        const { targetSocketId, targetSocketUser} = req.body;
+        const chatData = req.body.chat;
+
+        console.log(`whisperChat: ${chatData}`);
 
         const chat = await Chat.create({
             room: req.params.id,
-            user: generateRandomColor(),
+            user: targetSocketUser, 
+            color: req.session.color,
             chat: chatData,
         });
         const io = req.app.get('io');
@@ -171,9 +194,9 @@ exports.whisperChat = async(req, res, next)=>{
         // 5. 대상 소켓이 존재하는지 확인하고 귓속말 이벤트 전송
         if (targetSocket) {
             // ⭐️ 6. io.of('/chat').emit 대신, 찾은 targetSocket 객체에 'whisper' 이벤트를 보냅니다.
-            const senderUser = req.session.color;
+            //const senderUser = req.session.color;
             targetSocket.emit('whisper', {
-                fromUser: senderUser,
+                fromUser: targetSocketUser,
                 fromSocketId: req.session.socketId, // 발신자 소켓 ID (필요시)
                 chat: chatData
             });

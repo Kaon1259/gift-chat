@@ -1,85 +1,76 @@
-<%- include('layouts/layout', { title: (typeof title !== 'undefined' ? title : 'GIF 채팅방') }) %>
 
-<style>
-  /* ⭐️ socket-id-display 클래스에 커서 스타일 추가 */
-  .socket-id-display {
-    cursor: pointer; /* 마우스 오버 시 손 모양 커서로 변경 */
-    text-decoration: underline; /* 클릭 가능한 요소임을 나타내기 위해 밑줄 추가 */
-    /* 기타 스타일: 글꼴 굵기 등 */
-    font-weight: bold;
-    display: inline-block; /* div 내부에서 인라인 요소처럼 작동하게 함 */
-    margin-right: 5px;
-  }
-</style>
+<h1 class="room-title"><%= title || 'GIF 채팅방' %></h1>
+<div class="room-actions">
+  <a href="/" id="exit-btn" class="btn">방 나가기</a>
+</div>
 
-<h1><%= title %></h1>
-<a href="/" id="exit-btn">방 나가기</a>
-
-<fieldset>
-  <legend>채팅 내용</legend>
-  <div id="chat-list">
-    <% chats.forEach(function(chat) { %>
-      <% 
-        // 귓속말 클릭 기능을 위해 socketId가 필요하며, chat 객체에 socketId가 있다고 가정합니다.
-        const isMyChat = chat.user === user; 
-      %>
-      <div class="<%= isMyChat ? 'mine' : (chat.user === 'system' ? 'system' : 'other') %>">
-        <% if (chat.user !== 'system') { %>
-          <div style="color:'<%= chat.user %>'">
-            <span class="socket-id-display" data-socket-id="<%= chat.socketId %>">
-              <%= chat.user %>
-              <% if (chat.socketId) { %>
-                  (<%= chat.socketId.substring(0, 4) %>...)
-              <% } %>
-            </span>
+<section class="chat-panel">
+  <div id="chat-list" class="chat-list">
+    <% chats.forEach(function(chat){ 
+         const isSystem = chat.user === 'system';
+         const isMine = String(chat.user) === String(user);
+         const sock = chat.socketId || '';
+         const shortSock = sock ? `${sock.substring(0,4)}...` : '';
+    %>
+      <div class="message <%= isSystem ? 'system' : (isMine ? 'mine' : 'other') %>">
+        <% if (!isSystem) { %>
+          <div class="avatar" style="--avatar-color:<%= chat.color || '#888' %>;">
+            <%= (String(chat.user||'U').charAt(0) || 'U').toUpperCase() %>
           </div>
         <% } %>
-        <% if (chat.gif) { %>
-          <img src="/gif/<%= chat.gif %>">
-        <% } else { %>
-          <div><%= chat.chat %></div>
-        <% } %>
+
+        <div class="bubble">
+          <% if (!isSystem) { %>
+            <div class="meta">
+              <span class="name socket-id-display" data-socket-id="<%= sock %>">
+                <%= chat.user || 'Guest' %> <%= shortSock ? '(' + shortSock + ')' : '' %>
+              </span>
+            </div>
+          <% } %>
+
+          <% if (chat.gif) { %>
+            <img class="bubble-gif" src="/gif/<%= chat.gif %>" alt="gif">
+          <% } else { %>
+            <div class="text"><%= chat.chat %></div>
+          <% } %>
+        </div>
       </div>
-    <% }); %>
+    <% }) %>
   </div>
-</fieldset>
 
-<form action="/chat" id="chat-form" method="post" enctype="multipart/form-data">
-  <label for="gif">GIF 올리기</label>
-  <input type="file" id="gif" name="gif" accept="image/gif">
-  <input type="text" id="chat" name="chat">
-  <button type="submit">전송</button>
-</form>
+  <!-- 입력영역(작은 화면에서는 항상 하단 고정) -->
+  <div class="composer">
+    <form action="/chat" id="chat-form" method="post" enctype="multipart/form-data" class="composer-row">
+      <label for="gif" class="btn btn-light">GIF</label>
+      <input type="file" id="gif" name="gif" accept="image/gif" hidden>
+      <input type="text" id="chat" name="chat" placeholder="메시지를 입력하세요…">
+      <button type="submit" class="btn btn-primary">전송</button>
+    </form>
 
-<form action="/broadcastchat" id="broadcastchat-form" method="post" enctype="multipart/form-data">
-  <label>외치기</label>
-  <input type="text" id="broadcastchat-input" name="chat">
-  <button type="submit">전송</button>
-</form>
+    <form action="/broadcastchat" id="broadcastchat-form" method="post" class="composer-row">
+      <label class="composer-label">외치기</label>
+      <input type="text" id="broadcastchat-input" name="chat" placeholder="모두에게 외치기">
+      <button type="submit" class="btn">전송</button>
+    </form>
 
-<form action="/whisperchat" id="whisperchat-form" method="post" style="display: none; margin-top: 10px; border: 1px solid #ccc; padding: 10px;">
-  <legend>귓속말 보내기</legend>
-  <label for="whisper-target-display">대상:</label>
-  <input type="hidden" id="whisper-target-socketid" name="targetSocketId"> 
-  <span id="whisper-target-display" style="font-weight: bold; margin-right: 10px;"></span>
-  
-  <input type="text" id="whisper-chat-input" name="chat" placeholder="귓속말 내용">
-  <button type="submit">귓속말 전송</button>
-  <button type="button" id="whisper-cancel-btn">취소</button>
-</form>
+    <!-- 귓속말 -->
+    <form action="/whisperchat" id="whisperchat-form" method="post" class="composer-row whisper" style="display:none;">
+      <input type="hidden" id="whisper-target-socketid" name="targetSocketId">
+      <input type="hidden" id="whisper-target-user" name="targetSocketUser" value="<%=user.nick%>">
+      <span class="whisper-target">대상: <strong id="whisper-target-display"></strong></span>
+      <input type="text" id="whisper-chat-input" name="chat" placeholder="귓속말 내용">
+      <button type="submit" class="btn btn-accent">귓속말 전송</button>
+      <button type="button" id="whisper-cancel-btn" class="btn btn-light">취소</button>
+    </form>
+  </div>
+</section>
 
-
+<!-- 기존 스크립트는 그대로 사용 (socket, axios 등) -->
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-  // ⭐️ 클라이언트 쿠키 전달 옵션 추가 (필수)
-  const socket = io('/chat', { 
-    path: '/socket.io',
-    withCredentials: true 
-  });
-  const myUser = '<%= user %>'; 
-
-  // ⭐️ 귓속말 폼 관련 DOM 요소
+  const socket = io('/chat', { path: '/socket.io', withCredentials: true });
+  const myUser = '<%= user %>';
   const chatList = document.querySelector('#chat-list');
   const whisperForm = document.querySelector('#whisperchat-form');
   const whisperCancelBtn = document.querySelector('#whisper-cancel-btn');
@@ -87,196 +78,167 @@
   const whisperTargetSocketId = document.querySelector('#whisper-target-socketid');
   const whisperChatInput = document.querySelector('#whisper-chat-input');
 
-  // 연결 완료 후 join을 보내는 게 안전
   socket.on('connect', () => {
     const roomId = new URL(location).pathname.split('/').at(-1);
     socket.emit('join', roomId);
   });
 
-  socket.on('join', function (data) {
-    const div = document.createElement('div');
-    div.classList.add('system');
-    const chat = document.createElement('div');
-    chat.textContent = data.chat;
-    div.appendChild(chat);
-    chatList.appendChild(div);
+  // 시스템 메시지
+  ['join','exit'].forEach(evt => {
+    socket.on(evt, data => {
+      const div = document.createElement('div');
+      div.className = 'message system';
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = data.chat;
+      div.appendChild(bubble);
+      chatList.appendChild(div);
+      chatList.scrollTop = chatList.scrollHeight;
+    });
   });
 
-  socket.on('exit', function (data) {
+  // 귓속말 수신
+  socket.on('whisper', data => {
     const div = document.createElement('div');
-    div.classList.add('system');
-    const chat = document.createElement('div');
-    chat.textContent = data.chat;
-    div.appendChild(chat);
+    div.className = 'message system whisper-in';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = `<div class="meta">[귓속말] ${data.fromUser || data.fromSocketId} → 나</div><div class="text">${data.chat}</div>`;
+    div.appendChild(bubble);
     chatList.appendChild(div);
+    chatList.scrollTop = chatList.scrollHeight;
   });
 
-  // ⭐️ 귓속말 수신 이벤트 핸들러
-  socket.on('whisper', function (data) {
-    const div = document.createElement('div');
-    div.classList.add('system');
-    div.style.backgroundColor = '#fff3cd'; // 귓속말 배경색
-    div.style.color = '#856404'; // 귓속말 글씨색
-    
-    const name = document.createElement('div');
-    name.textContent = `[귓속말] ${data.fromUser || data.fromSocketId} -> 나:`; 
-    div.appendChild(name);
-
-    const chat = document.createElement('div');
-    chat.textContent = data.chat;
-    div.appendChild(chat);
-
-    chatList.appendChild(div);
-  });
-
+  // 일반/실시간 채팅
   socket.on('chat', function (data) {
-    // data = { chat: {...}, socketId: '...' }
     const doc = data.chat || data;
+    const isMine = data.socketId && socket.id === data.socketId;
 
-    const div = document.createElement('div');
+    const item = document.createElement('div');
+    item.className = 'message ' + (isMine ? 'mine' : 'other');
 
-    const isMine = typeof socket !== 'undefined' && data.socketId && socket.id === data.socketId;
-    div.classList.add(isMine ? 'mine' : 'other');
-
-    const userContainer = document.createElement('div');
-    
-    // ⭐️ 2. 실시간 채팅 시 클릭 가능한 소켓 ID를 출력
-    const nameSpan = document.createElement('span');
-    nameSpan.classList.add('socket-id-display'); 
-    nameSpan.dataset.socketId = data.socketId; 
-    
-    // 유저명과 소켓 ID를 함께 표시
-    nameSpan.textContent = `${doc.user || 'Guest'} (${data.socketId ? data.socketId.substring(0, 4) + '...' : 'Unknown'})`; 
-    
-    if (doc.user) nameSpan.style.color = doc.user;
-    userContainer.appendChild(nameSpan);
-    div.appendChild(userContainer);
-
-
-    if (doc.chat) {
-      const chat = document.createElement('div');
-      chat.textContent = doc.chat; 
-      div.appendChild(chat);
-    } else if (doc.gif) {
-      const gif = document.createElement('img');
-      gif.src = '/gif/' + doc.gif; 
-      div.appendChild(gif);
+    if (!isMine) {
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.style.backgroundColor = (doc.color || '#888');
+      avatar.textContent = String(doc.user || 'U').charAt(0).toUpperCase();
+      item.appendChild(avatar);
     }
 
-    chatList.appendChild(div);
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const name = document.createElement('span');
+    name.className = 'name socket-id-display';
+    name.dataset.socketId = data.socketId || '';
+    name.textContent = `${doc.user || 'Guest'} ${data.socketId ? '(' + data.socketId.substring(0,4) + '...)' : ''}`;
+    meta.appendChild(name);
+    bubble.appendChild(meta);
+
+    if (doc.gif) {
+      const img = document.createElement('img');
+      img.className = 'bubble-gif';
+      img.src = '/gif/' + doc.gif;
+      bubble.appendChild(img);
+    } else if (doc.chat) {
+      const text = document.createElement('div');
+      text.className = 'text';
+      text.textContent = doc.chat;
+      bubble.appendChild(text);
+    }
+
+    item.appendChild(bubble);
+    chatList.appendChild(item);
+    chatList.scrollTop = chatList.scrollHeight;
   });
 
-  socket.on('broadcastchat', function (data) {
-    const div = document.createElement('div');
-    if (data.user === '<%= user %>') {
-      div.classList.add('mine');
-    } else {
-      div.classList.add('other');
-    }
-
-    const name = document.createElement('div');
-    name.textContent = data.user;
-    div.appendChild(name);
-
-    if (data.chat) {
-      const chat = document.createElement('div');
-      chat.textContent = data.chat;
-      div.appendChild(chat);
-    } else {
-      const gif = document.createElement('img');
-      gif.src = '/gif/' + data.gif;
-      div.appendChild(gif);
-    }
-
-    if (data.user) div.style.color = data.user;
-
-    chatList.appendChild(div);
+  // 방송 채팅
+  socket.on('broadcastchat', data => {
+    const isMine = data.user === '<%= user %>';
+    const item = document.createElement('div');
+    item.className = 'message ' + (isMine ? 'mine' : 'other');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = `<div class="meta"><span class="name">${data.user}</span></div>`;
+    if (data.chat) bubble.innerHTML += `<div class="text">${data.chat}</div>`;
+    if (data.gif)  bubble.innerHTML += `<img class="bubble-gif" src="/gif/${data.gif}">`;
+    item.appendChild(bubble);
+    chatList.appendChild(item);
+    chatList.scrollTop = chatList.scrollHeight;
   });
 
-
-  // ⭐️ 귓속말 폼 상호작용 로직
-  // 1. 소켓 ID 클릭 이벤트 리스너 (DOM 위임)
-  chatList.addEventListener('click', function(e) {
+  // 귓속말 트리거
+  chatList.addEventListener('click', e => {
     if (e.target.classList.contains('socket-id-display')) {
       const targetId = e.target.dataset.socketId;
-
       if (!targetId || targetId === socket.id) {
-          alert(targetId ? "자기 자신에게는 귓속말을 보낼 수 없습니다." : "유효한 소켓 ID가 없습니다.");
-          return;
+        alert(targetId ? '자기 자신에게는 귓속말을 보낼 수 없습니다.' : '유효한 소켓 ID가 없습니다.');
+        return;
       }
 
-      // 폼을 보이게 하고 대상 ID 설정
       whisperTargetSocketId.value = targetId;
-      whisperTargetDisplay.textContent = `ID: ${targetId}`;
-      whisperForm.style.display = 'block';
-
+      whisperTargetDisplay.textContent = targetId;
+      whisperForm.style.display = 'grid';
       whisperChatInput.focus();
     }
   });
 
-  // 2. 귓속말 취소 버튼 이벤트
-  whisperCancelBtn.addEventListener('click', function() {
+  whisperCancelBtn.addEventListener('click', () => {
     whisperForm.style.display = 'none';
     whisperTargetSocketId.value = '';
     whisperChatInput.value = '';
   });
 
-
-  // 3. 귓속말 폼 제출 이벤트
-  whisperForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    const targetId = whisperTargetSocketId.value;
-    const chatValue = whisperChatInput.value;
-
-    if (targetId && chatValue) {
-      // 귓속말 전송을 위한 POST 요청 (서버 라우트 필요)
-      axios.post('/room/<%= room._id %>/whisperchat', {
-          targetSocketId: targetId,
-          chat: chatValue,
-      })
-      .then(() => { 
-          // 성공 후 나에게도 귓속말 보냄 (전송 확인용)
-          socket.emit('whisper', { fromUser: '나 (Me)', chat: chatValue });
-          
-          whisperChatInput.value = ''; 
-          whisperForm.style.display = 'none'; 
-      })
-      .catch((err) => { console.error(err); });
-    }
-  });
-
-
-  // ... (기존 chat-form, broadcastchat-form, gif change 이벤트 리스너 유지) ...
+  // 전송 핸들러
   document.querySelector('#chat-form').addEventListener('submit', function (e) {
     e.preventDefault();
-    if (e.target.chat.value) {
-      axios.post('/room/<%= room._id %>/chat', {
-        chat: this.chat.value,
-      })
-      .then(() => { e.target.chat.value = ''; })
-      .catch((err) => { console.error(err); });
+    if (this.chat.value) {
+      axios.post('/room/<%= room._id %>/chat', { chat: this.chat.value })
+        .then(() => { this.chat.value=''; })
+        .catch(console.error);
     }
   });
 
   document.querySelector('#broadcastchat-form').addEventListener('submit', function (e) {
     e.preventDefault();
-    if (e.target.chat.value) {
-      axios.post('/room/<%= room._id %>/broadcastchat', {
-        chat: this.chat.value,
-      })
-      .then(() => { e.target.chat.value = ''; })
-      .catch((err) => { console.error(err); });
+    if (this.chat.value) {
+      axios.post('/room/<%= room._id %>/broadcastchat', { chat: this.chat.value })
+        .then(() => { this.chat.value=''; })
+        .catch(console.error);
     }
   });
 
-  document.querySelector('#gif').addEventListener('change', function (e) {
+  document.querySelector('#gif').addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     const formData = new FormData();
-
-    if (e.target.files && e.target.files[0]) {
-      formData.append('gif', e.target.files[0]);
-      axios.post('/room/<%= room._id %>/gif', formData)
-        .then(() => { e.target.value = null; })
-        .catch((err) => { console.error(err); });
-    }
+    formData.append('gif', file);
+    axios.post('/room/<%= room._id %>/gif', formData)
+      .then(() => { e.target.value = null; })
+      .catch(console.error);
   });
+
+  document.querySelector('#whisperchat-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+
+  const targetSocketId = this.targetSocketId.value?.trim();
+  const chat = this.chat.value?.trim();
+  const targetSocketUser = this.targetSocketUser.value?.trim();
+
+  if (targetSocketId && chat) {
+    axios.post('/room/<%= room._id %>/whisperchat', {
+      targetSocketId,
+      targetSocketUser,
+      chat,
+    })
+    .then(() => {
+      this.chat.value = '';
+      this.targetSocketId.value = '';
+      this.style.display = 'none';
+    })
+    .catch(console.error);
+  }
+});
 </script>

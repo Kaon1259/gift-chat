@@ -1,27 +1,16 @@
 const path = require('path');
 const router = require('express').Router();
-const { renderMain, renderRoom, createRoom, enterRoom, sendChat, broadcastChat, sendGif } = require(path.join(__dirname, '..', 'controllers'));
-const upload = require(path.join(__dirname, '..', 'middlewares', 'upload')); // multer 설정(이미 만드신 것)
+const { renderIndex, renderRoom, createRoom } = require(path.join(__dirname, '..', 'controllers'));
+const { isLoggedIn, isNotLoggedIn } = require(path.join(__dirname, '..', 'middlewares'));
 
 router.route('/')
-    .get(renderMain);
+    .get(renderIndex);
 
 router.route('/room')
-    .get(renderRoom)
-    .post(createRoom);
-
-// router.route('/room/:id')
-//     .get(enterRoom);
-
-// router.route('/room/:id/chat')
-//     .post(sendChat);
-
-// router.route('/room/:id/broadcastchat')
-//     .post(broadcastChat);
-
-// router.route('/room/:id/gif')
-//     .post(upload.single('gif'), sendGif);
+    .get(isLoggedIn, renderRoom)
+    .post(isLoggedIn, createRoom);
 
 router.use('/room/:id', require('./chat'));
+router.use('/auth', require('./auth'));
     
 module.exports = router;
