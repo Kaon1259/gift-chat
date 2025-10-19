@@ -514,3 +514,14 @@ body {
 .message.mine { justify-content: flex-end; }   /* 오른쪽 (남이 쓴 글) */
 .message.other { justify-content: flex-start; }/* 왼쪽 (내가 쓴 글) */
 .message.system { justify-content: center; }   /* 가운데 (방송/시스템) */
+
+.message.system.whisper-in .bubble .actions {
+  margin-top: 6px;
+}
+.message.system.whisper-in .bubble .meta {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.message.system.whisper-out .bubble .meta {
+  opacity: 0.8;
+}

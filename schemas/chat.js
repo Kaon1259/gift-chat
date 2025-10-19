@@ -22,6 +22,16 @@ const chatSchema = new Schema({
         gif: {
             type: String,
         },
+        chatType:{
+            type: String,
+            required: true,
+            default: 'local',
+            enum: ['local', 'whisper', 'broadcast'],
+        },
+        from:{
+            type: String,
+            required: false,
+        },
         createdAt: {
             type: Date,
             default: Date.now,

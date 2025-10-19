@@ -119,6 +119,7 @@ exports.sendChat = async(req, res, next)=>{
             room: req.params.id,
             user: res.locals.user.nick,
             color: req.session.color,
+            chatType: 'local',
             chat: req.body.chat,
         });
 
@@ -137,6 +138,7 @@ exports.broadcastChat = async(req, res, next)=>{
             room: req.params.id,
             user: res.locals.user.nick, 
             color: req.session.color,
+            chatType: 'broadcast',
             chat: req.body.chat,
         });
 
@@ -167,22 +169,19 @@ exports.sendGif = async(req, res, next) =>{
     }
 }
 
-// axios.post('/room/<%= room._id %>/whisperchat', {
-//           targetSocketId: targetId,
-//           chat: chatValue,
-//       })
-
 exports.whisperChat = async(req, res, next)=>{
     try{
-        const { targetSocketId, targetSocketUser} = req.body;
+        const { targetSocketId, targetSocketUser, sourceSocketUser} = req.body;
         const chatData = req.body.chat;
 
-        console.log(`whisperChat: ${chatData}`);
+        console.log(`whisperChat: ${chatData} : from: ${req.user.nick} -> to:${sourceSocketUser}`);
 
         const chat = await Chat.create({
             room: req.params.id,
-            user: targetSocketUser, 
+            user: sourceSocketUser, 
             color: req.session.color,
+            chatType: 'whisper',
+            from: sourceSocketUser,  //임시
             chat: chatData,
         });
         const io = req.app.get('io');
@@ -196,11 +195,11 @@ exports.whisperChat = async(req, res, next)=>{
             // ⭐️ 6. io.of('/chat').emit 대신, 찾은 targetSocket 객체에 'whisper' 이벤트를 보냅니다.
             //const senderUser = req.session.color;
             targetSocket.emit('whisper', {
-                fromUser: targetSocketUser,
+                fromUser: sourceSocketUser,
                 fromSocketId: req.session.socketId, // 발신자 소켓 ID (필요시)
                 chat: chatData
             });
-            console.log(`[Whisper 성공] ${senderUser} -> ${targetSocketId}: ${chatData}`);
+            console.log(`[Whisper 성공] ${sourceSocketUser} -> ${targetSocketId}: ${chatData}`);
             res.send('ok');
         } else {
             console.log(`[Whisper 실패] 대상 소켓 ID ${targetSocketId}를 찾을 수 없습니다. (접속 끊김)`);

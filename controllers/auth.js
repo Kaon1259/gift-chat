@@ -49,86 +49,112 @@ const join = async(req, res, next)=>{
 };
 
 
-const login = (req, res, next)=>{
+// const login = (req, res, next)=>{
     
-    console.log(`auth/login : ${req.body.email} : ${req.body.password}`)
+//     console.log(`auth/login : ${req.body.email} : ${req.body.password}`)
 
-    //'local' Stratergy를 실행하고 (authError, ...) 콜백 함수를 호출해서 전달해 준다...
-    passport.authenticate('local', async(authError, user, info)=>{
-        if(authError){
-            console.log(authError);
-            return next(authError);
-        }
+//     //'local' Stratergy를 실행하고 (authError, ...) 콜백 함수를 호출해서 전달해 준다...
+//     passport.authenticate('local', async(authError, user, info)=>{
+//         if(authError){
+//             console.log(authError);
+//             return next(authError);
+//         }
 
-        if(!user){
-            return res.redirect(`/?error=${info.message}`);
-        }
+//         if(!user){
+//             return res.redirect(`/?error=${info.message}`);
+//         }
 
-        try {
-        // 1) 로그인(세션에 유저 적재)
-        await new Promise((resolve, reject) => {
-            req.login(user, (loginError) => {
-            if (loginError) return reject(loginError);
-            return resolve();
-            });
+//          // 1) 세션ID 재발급 (중요!)
+//         req.session.regenerate((regenErr) => {
+//             if (regenErr) return next(regenErr);
+//         });
+
+//         try {
+//         // 1) 로그인(세션에 유저 적재)
+//         await new Promise((resolve, reject) => {
+//             req.login(user, (loginError) => {
+//             if (loginError) return reject(loginError);
+
+//             return resolve();
+//             });
+//         });
+
+//         // 2) (중요) 세션 저장이 끝난 뒤에 리다이렉트 — 레이스컨디션 방지
+//         if (req.session) {
+//             console.log(`login : ${req.session}, sessionId : ${req.sessionID}`);
+//             req.session.save((saveErr) => {
+//             if (saveErr) return next(saveErr);
+
+//             return res.redirect('/'); // 성공
+//             });
+//         } else {
+//             // 세션 미들웨어가 없을 때 대비 (개발 중 오류 방지)
+//             return res.redirect('/');
+//         }
+//         } catch (e) {
+//         return next(e);
+//         }
+//     })(req, res, next);
+// };
+
+const login = (req, res, next) => {
+  passport.authenticate('local', (authError, user, info) => {
+    if (authError) return next(authError);
+    if (!user) return res.redirect(`/?error=${info?.message || '로그인 실패'}`);
+
+    // 1) 세션ID 재발급 (중요!)
+    req.session.regenerate((regenErr) => {
+      if (regenErr) return next(regenErr);
+
+      // 2) 유저 적재
+      req.login(user, (loginErr) => {
+        if (loginErr) return next(loginErr);
+
+        // 3) 세션 저장 후 리다이렉트 (레이스컨디션 방지)
+        req.session.save((saveErr) => {
+          if (saveErr) return next(saveErr);
+          return res.redirect('/');
         });
-
-        // 2) (중요) 세션 저장이 끝난 뒤에 리다이렉트 — 레이스컨디션 방지
-        if (req.session) {
-            console.log(`login : ${req.session}`);
-            req.session.save((saveErr) => {
-            if (saveErr) return next(saveErr);
-
-            return res.redirect('/'); // 성공
-            });
-        } else {
-            // 세션 미들웨어가 없을 때 대비 (개발 중 오류 방지)
-            return res.redirect('/');
-        }
-        } catch (e) {
-        return next(e);
-        }
-    })(req, res, next);
+      });
+    });
+  })(req, res, next);
 };
 
 
-const logout = async(req, res, next) => {
+const logout = (req, res, next) => {
     
-    console.log('before', {
-        sid: req.sessionID,
-        hasSession: !!req.session,
-        hasUser: !!req.user,
-        cookie: req.headers.cookie
-    });
-
-      const cookieName = process.env.SESSION_NAME || 'sid'; // express-session name과 동일
+        // express-session에 설정한 name과 동일해야 합니다.
+    const cookieName = process.env.SESSION_NAME || 'connect.sid';
 
     try {
-        await req.logout((err) => {
-            if (err) return next(err);
-            
-            // 세션을 쓰는 경우, 세션도 정리
-            if (req.session) {
-                req.session.destroy(() => {
-                    res.clearCookie(cookieName); // 세션 쿠키 이름에 맞춰 조정
-                    //res.clearCookie('connect.sid');
-                    return res.redirect('/'); // 혹은 '/'
-                });
-            } else {
-                return res.redirect('/');
-            }
+        req.logout(err => {
+        if (err) return next(err);
+
+        if (req.session) {
+            const sid = req.sessionID; // 로깅용 (destroy 전에 캡처)
+            console.log('logout:req.session (will destroy)', { sid });
+
+            req.session.destroy(destroyError => {
+                if (destroyError) return next(destroyError);
+
+                if (!res.headersSent) {
+                    // 쿠키는 한 번만, 올바른 이름 + 동일 옵션으로 제거
+                    res.clearCookie(cookieName);
+                    return res.redirect('/');
+                }}
+            );
+                // 응답은 destroy 콜백에서만 보냄
+            return;
+        }
+
+        // 세션 객체가 없으면 쿠키만 정리 후 종료
+        if (!res.headersSent) {
+            res.clearCookie(cookieName);
+            return res.redirect('/');
+        }
         });
-        
-        console.log('after', {
-        sid: req.sessionID,
-        hasSession: !!req.session,
-        hasUser: !!req.user,
-        cookie: req.headers.cookie
-    });
-        
     } catch (err) {
         console.log('로그아웃 처리 중 에러 발생:', err);
-        // next()로 에러 핸들러로 전달
         return next(err);
     }
 };

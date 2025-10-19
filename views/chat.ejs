@@ -56,7 +56,8 @@
     <!-- 귓속말 -->
     <form action="/whisperchat" id="whisperchat-form" method="post" class="composer-row whisper" style="display:none;">
       <input type="hidden" id="whisper-target-socketid" name="targetSocketId">
-      <input type="hidden" id="whisper-target-user" name="targetSocketUser" value="<%=user.nick%>">
+      <input type="hidden" id="whisper-source-user" name="sourceSocketUser" value="<%=user.nick%>">
+      <input type="hidden" id="whisper-target-user" name="targetSocketUser">
       <span class="whisper-target">대상: <strong id="whisper-target-display"></strong></span>
       <input type="text" id="whisper-chat-input" name="chat" placeholder="귓속말 내용">
       <button type="submit" class="btn btn-accent">귓속말 전송</button>
@@ -97,13 +98,41 @@
     });
   });
 
+
   // 귓속말 수신
   socket.on('whisper', data => {
+    // data: { fromSocketId, fromUser, chat }
     const div = document.createElement('div');
     div.className = 'message system whisper-in';
+    // 답장에 쓰기 위해 데이터 보관
+    div.dataset.replySocketId = data.fromSocketId || '';
+    div.dataset.replyUser = data.fromUser || '';
+
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
-    bubble.innerHTML = `<div class="meta">[귓속말] ${data.fromUser || data.fromSocketId} → 나</div><div class="text">${data.chat}</div>`;
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.innerHTML = `[귓속말] ${data.fromUser || data.fromSocketId} → 나`;
+    bubble.appendChild(meta);
+
+    const text = document.createElement('div');
+    text.className = 'text';
+    text.textContent = data.chat || '';
+    bubble.appendChild(text);
+
+    // 답장 버튼
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const replyBtn = document.createElement('button');
+    replyBtn.type = 'button';
+    replyBtn.className = 'btn btn-light whisper-reply';
+    replyBtn.dataset.socketId = data.fromSocketId || '';
+    replyBtn.dataset.user = data.fromUser || '';
+    replyBtn.textContent = '답장';
+    actions.appendChild(replyBtn);
+    bubble.appendChild(actions);
+
     div.appendChild(bubble);
     chatList.appendChild(div);
     chatList.scrollTop = chatList.scrollHeight;
@@ -169,19 +198,55 @@
     chatList.scrollTop = chatList.scrollHeight;
   });
 
-  // 귓속말 트리거
-  chatList.addEventListener('click', e => {
-    if (e.target.classList.contains('socket-id-display')) {
-      const targetId = e.target.dataset.socketId;
-      if (!targetId || targetId === socket.id) {
-        alert(targetId ? '자기 자신에게는 귓속말을 보낼 수 없습니다.' : '유효한 소켓 ID가 없습니다.');
+  
+  function openWhisperForm(targetId, fromUser) {
+    if (!targetId) return;
+    if (targetId === socket.id) {
+      alert('자기 자신에게는 귓속말을 보낼 수 없습니다.');
+      return;
+    }
+    const shortSock = targetId.substring(0, 4) + '...';
+    whisperTargetSocketId.value = targetId;
+    whisperTargetDisplay.textContent = fromUser ? `${fromUser} (${shortSock})` : shortSock;
+    whisperForm.style.display = 'grid';
+    whisperChatInput.focus();
+  }
+
+  chatList.addEventListener('click', (e) => {
+    // 1) "답장" 버튼 (가장 우선)
+    const replyBtn = e.target.closest('.whisper-reply');
+    if (replyBtn) {
+      const targetId = replyBtn.dataset.socketId || '';
+      const fromUser = replyBtn.dataset.user || '';
+      openWhisperForm(targetId, fromUser);
+      return; // 더 이상 전파 처리 X
+    }
+
+    // 2) 일반 메시지의 "이름(소켓ID)" 클릭
+    const socketSpan = e.target.closest('.socket-id-display');
+    if (socketSpan) {
+      const targetId = socketSpan.dataset.socketId || '';
+      const fromUser = socketSpan.textContent?.trim().split(' (')[0] || '';
+      if (!targetId) {
+        alert('유효한 소켓 ID가 없습니다.');
         return;
       }
+    
+      const whisperForm = document.querySelector('#whisperchat-form');
+      const whisperTargetUser = whisperForm.querySelector('#whisper-target-user');
+      whisperTargetUser.value = fromUser || '';  // 예: 귓속말 대상의 닉네임
 
-      whisperTargetSocketId.value = targetId;
-      whisperTargetDisplay.textContent = targetId;
-      whisperForm.style.display = 'grid';
-      whisperChatInput.focus();
+      openWhisperForm(targetId, fromUser);
+      return;
+    }
+
+    // 3) 수신한 귓속말의 버블 클릭
+    const whisperMsg = e.target.closest('.message.whisper-in');
+    if (whisperMsg && whisperMsg.querySelector('.bubble')?.contains(e.target)) {
+      const targetId = whisperMsg.dataset.replySocketId || '';
+      const fromUser = whisperMsg.dataset.replyUser || '';
+      openWhisperForm(targetId, fromUser);
+      return;
     }
   });
 
@@ -221,24 +286,45 @@
   });
 
   document.querySelector('#whisperchat-form').addEventListener('submit', function (e) {
-  e.preventDefault();
+    e.preventDefault();
 
-  const targetSocketId = this.targetSocketId.value?.trim();
-  const chat = this.chat.value?.trim();
-  const targetSocketUser = this.targetSocketUser.value?.trim();
+    const targetSocketId = this.targetSocketId.value?.trim();
+    const chat = this.chat.value?.trim();
+    const targetSocketUser = this.targetSocketUser.value?.trim();
+    const sourceSocketUser = this.sourceSocketUser.value?.trim();
 
-  if (targetSocketId && chat) {
-    axios.post('/room/<%= room._id %>/whisperchat', {
-      targetSocketId,
-      targetSocketUser,
-      chat,
-    })
-    .then(() => {
-      this.chat.value = '';
-      this.targetSocketId.value = '';
-      this.style.display = 'none';
-    })
-    .catch(console.error);
-  }
-});
+    if (targetSocketId && chat) {
+      axios.post('/room/<%= room._id %>/whisperchat', {
+        targetSocketId,
+        targetSocketUser,
+        sourceSocketUser,
+        chat,
+      })
+      .then(() => {
+        // 내 화면에도 "내가 보낸 귓속말" 표시
+        const div = document.createElement('div');
+        div.className = 'message system whisper-out';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        const shortSock = targetSocketId.substring(0, 4) + '...';
+        bubble.innerHTML =
+          `<div class="meta">[귓속말] 나 → ${targetSocketUser || shortSock}</div>` +
+          `<div class="text"></div>`;
+        bubble.querySelector('.text').textContent = chat;
+
+        div.appendChild(bubble);
+        chatList.appendChild(div);
+        chatList.scrollTop = chatList.scrollHeight;
+
+        // 폼 리셋
+        this.chat.value = '';
+        this.targetSocketId.value = '';
+        this.style.display = 'none';
+      })
+      .catch(console.error);
+    }
+  });
+
+
 </script>

@@ -12,7 +12,6 @@ const sessionMiddleware = require(path.join(__dirname, 'middlewares', 'sessionmw
 const webSocket = require(path.join(__dirname,'middlewares', 'socketio'));
 const dbConnect = require(path.join(__dirname,'middlewares', 'mongoDbConnect'));
 const ColorHash = require('color-hash').default;
-const { RedisStore } = require('connect-redis');
 
 require('dotenv').config();
 app.set('port', process.env.PORT || 8005);
@@ -38,16 +37,18 @@ app.use(passport.session());
 //before router...
 app.use((req, res, next)=>{
     console.log(`router before`)
-    if(!req.session.color){
-        const colorHash = new ColorHash();
-        req.session.color = colorHash.hex(req.session);
-        console.log(`session.color = ${req.session.color} sessionid: ${req.sessionID}`);
-    }
-    console.log(`app.use((req, res, next) : ${req.user ? req.user.id : 'not logged in'}`);
+    if(req.user){
+        if(!req.session.color){
+            const colorHash = new ColorHash();
+            req.session.color = colorHash.hex(req.session);
+            console.log(`session.color = ${req.session.color} sessionid: ${req.sessionID}`);
+        }
+        console.log(`app.use((req, res, next) : ${req.user ? req.user.id : 'not logged in'}`);
 
-    if (!res.locals) res.locals = {};
-    res.locals.user = req.user ? req.user : null ;
-    console.log(`res.locals.user : ${res.locals.user}`);
+        if (!res.locals) res.locals = {};
+        res.locals.user = req.user ? req.user : null ;
+        console.log(`res.locals.user : ${res.locals.user}`);
+    }
     next();
 });
 
