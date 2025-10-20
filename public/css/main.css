@@ -1,527 +1,216 @@
+/* ========== Reset & Base ========== */
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
-.btn {
-  display: inline-block;
-  padding: 0 5px;
-  text-decoration: none;
-  cursor: pointer;
-  border-radius: 4px;
-  background: white;
-  border: 1px solid silver;
-  color: crimson;
-  height: 37px;
-  line-height: 37px;
-  vertical-align: middle;       /* ✅ 세로로 한 글자씩 깨지는 현상 방지 */
-  font-size: 12px;
-  white-space: nowrap;          /* ✅ 줄바꿈 방지 */
-}
-input, textarea {
-  border-radius: 4px;
-  height: 37px;
-  padding: 10px;
-  border: 1px solid silver;
-}
-.container { width: 100%; height: 100%; }
-@media screen and (min-width: 800px) {
-  .container { width: 800px; margin: 0 auto; }
-}
-.input-group { margin-bottom: 15px; }
-.input-group label { width: 25%; display: inline-block; }
-.input-group input { width: 70%; }
-#join { float: right; }
-.profile-wrap {
-  width: 100%;
-  display: inline-block;
-  vertical-align: top;
-  margin: 10px 0;
-}
-@media screen and (min-width: 800px) {
-  .profile-wrap { width: 290px; margin-bottom: 0; }
-}
-.profile {
-  text-align: left;
-  padding: 10px;
-  margin-right: 10px;
-  border-radius: 4px;
-  border: 1px solid silver;
-  background: yellow;
-}
-.user-name, .user-money {
-  font-weight: bold;
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-.timeline {
-  margin-top: 10px;
-  width: 100%;
-  display: inline-block;
-  border-radius: 4px;
-  vertical-align: top;
-}
-@media screen and (min-width: 800px) { .timeline { width: 500px; } }
-#good-list, #good-list th, #good-list td {
-  border: 1px solid black;
-  border-collapse: collapse;
-}
-#good-list img { max-height: 100px; vertical-align: top; }
-#good-img { width: 280px; display: block; }
-.error-message { color: red; font-weight: bold; }
-#join-form, #good-form { padding: 10px; text-align: center; }
-footer { text-align: center; }
 
-
-/* ✅ 테이블이 내용에 맞춰 열 폭을 자동 조절하도록 */
-#good-list {
-  width: 100%;
-  table-layout: auto;           /* 기본값이지만 명시해서 안정화 */
-}
-
-/* ✅ 긴 텍스트가 셀 안에서 줄바꿈되어 폭을 과도하게 늘리지 않도록 */
-#good-list th, #good-list td {
-  padding: 8px;                 /* 보기 좋게 여백 */
-  white-space: normal;          /* 줄바꿈 허용 */
-  overflow-wrap: anywhere;      /* 아주 긴 단어/URL도 줄바꿈 */
-  word-break: break-word;       /* 긴 문자열 강제 줄바꿈 */
-}
-
-/* ✅ 이미지 열은 고정 폭을 줘서 전체 폭을 잡아먹지 않게 (필요 시 조절) */
-#good-list td:nth-child(2),
-#good-list th:nth-child(2) {
-  width: 120px;                 /* 이미지 열 고정 폭 */
-}
-
-/* ✅ 이미지가 셀 너비 안에서 자동 크기 조절 */
-#good-list img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
-/* ✅ 작은 화면에서 테이블이 넘치면 가로 스크롤 허용(선택) */
-@media (max-width: 799px) {
-  .timeline {
-    overflow-x: auto;
-  }
-}
-
-/* ✅ 전체 페이지 중앙 정렬을 위한 기본 설정 */
 body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100vh;
+  /* 레이아웃 기본 */
+  display: flex; flex-direction: column; align-items: center; min-height: 100vh;
   background: #fafafa;
-}
 
-/* ✅ 상단 메뉴 중앙 정렬 */
-.navbar {
-  width: 100%;
-  background: #333;
-  text-align: center;
-  padding: 10px 0;
-}
-
-.navbar a {
-  color: white;
-  text-decoration: none;
-  margin: 0 15px;
-  font-weight: bold;
-}
-.navbar a:hover {
-  text-decoration: underline;
-}
-
-/* ✅ 메인 컨테이너 중앙 정렬 */
-.container {
-  width: 100%;
-  max-width: 600px;
-  margin: 30px auto;
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-/* ✅ 회원가입 폼 중앙 정렬 */
-.timeline {
-  display: flex;
-  flex-direction: column;
-  align-items: center; /* 폼 자체를 중앙 정렬 */
-  justify-content: center;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 30px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-/* ✅ 폼 요소 크기 균일하게 */
-#join-form {
-  width: 100%;
-  max-width: 400px;
-}
-
-.input-group {
-  width: 100%;
-  text-align: left;
-  margin-bottom: 15px;
-}
-
-.input-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.input-group input {
-  width: 100%;
-  height: 37px;
-  padding: 8px;
-  border: 1px solid silver;
-  border-radius: 4px;
-}
-
-#join-btn {
-  width: 100%;
-  height: 40px;
-  background: crimson;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-#join-btn:hover {
-  background: darkred;
-}
-
-/* 메인 히어로 섹션 */
-.hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  padding: 24px 16px 40px;
-  text-align: center;
-}
-
-.hero-title {
-  margin: 0;
-  font-size: 28px;
-  line-height: 1.3;
-}
-
-.hero-image-wrap {
-  width: 100%;
-  max-width: 900px;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
-  background: #fff;
-}
-
-.hero-image {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.hero-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-/* 버튼 보강 */
-.btn-primary {
-  background: crimson;
-  color: #fff;
-  border: 1px solid crimson;
-}
-.btn-primary:hover {
-  filter: brightness(0.95);
-}
-
-/* --- 채팅방 UI --- */
-.room-title {
-  width: 100%;
-  max-width: 800px;
-  margin: 8px auto 0;
-  font-size: 22px;
-  font-weight: 700;
-}
-.room-actions { width:100%; max-width:800px; margin: 6px auto 12px; }
-
-.chat-panel{
-  width:100%;
-  max-width:800px;
-  background:#fff;
-  border:1px solid #e5e7eb;
-  border-radius:12px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.06);
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-}
-.chat-list{
-  padding:16px 14px 8px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  max-height:60vh;
-  overflow:auto;
-  scroll-behavior:smooth;
-}
-.message{
-  display:flex;
-  align-items:flex-end;
-  gap:10px;
-}
-.message.other { justify-content:flex-start; }
-.message.mine { justify-content:flex-end; }
-.message.system{
-  justify-content:center;
-  opacity:.9;
-}
-.avatar{
-  width:34px; height:34px; border-radius:50%;
-  color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center;
-  flex:0 0 auto;
-  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15);
-}
-.bubble{
-  max-width:70%;
-  background:#f4f6f8;
-  border-radius:14px;
-  padding:8px 12px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-}
-.message.mine .bubble{
-  background:#e8f0ff;
-}
-.message.system .bubble{
-  background:#fff3cd;
-  color:#5c4800;
-  border:1px solid #f3e2a6;
-}
-.meta{
-  font-size:12px;
-  color:#6b7280;
-  margin-bottom:4px;
-}
-.name{
-  font-weight:700;
-}
-.text{
-  font-size:14px;
-  line-height:1.5;
-  color:#222;
-  word-break:break-word;
-}
-.bubble-gif{
-  max-width:280px;
-  width:100%;
-  height:auto;
-  border-radius:10px;
-  display:block;
-}
-
-/* 클릭 가능한 소켓 ID */
-.socket-id-display{
-  cursor:pointer;
-  text-decoration:underline;
-}
-
-/* 입력 컴포저 */
-.composer{
-  border-top:1px solid #eaeaea;
-  backdrop-filter: blur(2px);
-  background:#fafafa;
-  padding:10px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  position:sticky;
-  bottom:0;
-}
-.composer-row{
-  display:grid;
-  grid-template-columns: auto 1fr auto;
-  gap:8px;
-  align-items:center;
-}
-.composer-row.whisper{
-  grid-template-columns: auto 1fr auto auto;
-}
-.composer-label{
-  font-size:12px; color:#666; padding:0 6px;
-}
-.whisper-target{ font-size:12px; color:#444; }
-.btn-light{
-  background:#fff;
-  color:#333;
-  border:1px solid #ddd;
-}
-.btn-accent{
-  background:#0ea5e9;
-  border:1px solid #0ea5e9;
-  color:#fff;
-}
-
-/* 좁은 화면 최적화 */
-@media (max-width: 640px){
-  .bubble{ max-width:85%; }
-  .composer-row{ grid-template-columns: auto 1fr auto; }
-}
-
-
-/* ===== 배경 (부드러운 그라디언트 + 배경 이미지) ===== */
-body {
-  /* 기존 설정 유지 + 아래만 추가 */
+  /* 배경(그라디언트 + 이미지) */
   background-image:
     radial-gradient(1200px 600px at 10% -10%, rgba(228,240,255,.7), rgba(255,255,255,0)),
     radial-gradient(1000px 500px at 100% 0%, rgba(255,240,220,.6), rgba(255,255,255,0)),
-    url('/images/gifchat-bg.png'); /* 있으면 사용, 없으면 자동 무시 */
+    url('/images/gifchat-bg.png');
   background-size: cover, cover, cover;
   background-attachment: fixed, fixed, fixed;
   background-position: center, center, center;
 }
 
-/* ===== 방 목록 카드 ===== */
-.rooms-wrap {
-  width: 100%;
-  max-width: 900px;
-  margin: 20px auto 30px;
-  padding: 0 12px;
+input, textarea {
+  border-radius: 4px; height: 37px; padding: 10px; border: 1px solid silver;
 }
+
+/* 버튼 공통 */
+.btn {
+  display: inline-block; padding: 0 5px; height: 37px; line-height: 37px;
+  border-radius: 4px; background: #fff; border: 1px solid silver;
+  text-decoration: none; cursor: pointer; color: crimson; font-size: 12px;
+  white-space: nowrap; vertical-align: middle;
+}
+.btn-light { background:#fff; color:#333; border:1px solid #ddd; }
+.btn-primary { background: crimson; color: #fff; border: 1px solid crimson; }
+.btn-primary:hover { filter: brightness(0.95); }
+
+/* ========== Top / Nav / Container ========== */
+.topbar {
+  position: relative; left: 0; top: 0; width: 100vw; min-height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 8px 12px; color: #fff; background: #000; box-shadow: 0 1px 0 rgba(0,0,0,0.06); z-index: 100;
+}
+.topbar .topbar-text { font-size: 14px; opacity: 0.95; }
+
+.navbar { width: 100%; background: #333; text-align: center; padding: 10px 0; }
+.navbar a { color: #fff; text-decoration: none; margin: 0 15px; font-weight: bold; }
+.navbar a:hover { text-decoration: underline; }
+
+.container { width: 100%; max-width: 600px; margin: 30px auto; padding: 20px; box-sizing: border-box; }
+@media screen and (min-width: 800px) { .container { width: 800px; margin: 0 auto; } }
+
+/* ========== Forms / Hero ========== */
+.input-group { width: 100%; text-align: left; margin-bottom: 15px; }
+.input-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+.input-group input { width: 100%; height: 37px; padding: 8px; border: 1px solid silver; border-radius: 4px; }
+
+#join { float: right; }
+#join-form { width: 100%; max-width: 400px; }
+#join-btn {
+  width: 100%; height: 40px; background: crimson; color: #fff;
+  border: none; border-radius: 4px; font-weight: bold; cursor: pointer;
+}
+#join-btn:hover { background: darkred; }
+#join-form, #good-form { padding: 10px; text-align: center; }
+
+.hero { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 24px 16px 40px; text-align: center; }
+.hero-title { margin: 0; font-size: 28px; line-height: 1.3; }
+.hero-image-wrap {
+  width: 100%; max-width: 900px; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08); background: #fff;
+}
+.hero-image { width: 100%; height: auto; display: block; }
+.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+/* ========== Profile / Timeline ========== */
+.profile-wrap { width: 100%; display: inline-block; vertical-align: top; margin: 10px 0; }
+@media screen and (min-width: 800px) { .profile-wrap { width: 290px; margin-bottom: 0; } }
+
+.profile {
+  text-align: left; padding: 10px; margin-right: 10px; border-radius: 4px;
+  border: 1px solid silver; background: yellow;
+}
+.user-name, .user-money { font-weight: bold; font-size: 18px; margin-bottom: 10px; }
+
+.timeline {
+  margin-top: 10px; width: 100%; display: inline-block; border-radius: 4px; vertical-align: top;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 30px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+@media screen and (min-width: 800px) { .timeline { width: 500px; } }
+
+/* ========== Tables (goods) ========== */
+#good-list, #good-list th, #good-list td { border: 1px solid black; border-collapse: collapse; }
+#good-list { width: 100%; table-layout: auto; }
+#good-list th, #good-list td {
+  padding: 8px; white-space: normal; overflow-wrap: anywhere; word-break: break-word;
+}
+#good-list td:nth-child(2), #good-list th:nth-child(2) { width: 120px; } /* 이미지 열 */
+#good-list img { max-width: 100%; height: auto; display: block; max-height: 100px; vertical-align: top; }
+#good-img { width: 280px; display: block; }
+
+@media (max-width: 799px){ .timeline { overflow-x: auto; } }
+
+.error-message { color: red; font-weight: bold; }
+footer { text-align: center; }
+
+/* ========== Rooms / Pretty Table ========== */
+.rooms-wrap { width: 100%; max-width: 900px; margin: 20px auto 30px; padding: 0 12px; }
 .rooms-card {
-  background: rgba(255,255,255,0.8);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(230,232,236,0.8);
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-  padding: 16px 16px 18px;
+  background: rgba(255,255,255,0.8); backdrop-filter: blur(6px);
+  border: 1px solid rgba(230,232,236,0.8); border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 16px 16px 18px;
 }
-.rooms-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.rooms-head h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-}
+.rooms-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.rooms-head h2 { margin: 0; font-size: 18px; font-weight: 700; }
 
-/* ===== 스크롤 영역 (작은 화면에서 가로 스크롤 허용) ===== */
-.table-scroller {
-  width: 100%;
-  overflow-x: auto;
-}
+.table-scroller { width: 100%; overflow-x: auto; }
 
-/* ===== 예쁜 테이블 ===== */
 .pretty-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  background: #fff;
-  border-radius: 10px;
-  overflow: hidden;
-  font-size: 14px;
+  width: 100%; border-collapse: separate; border-spacing: 0; background: #fff;
+  border-radius: 10px; overflow: hidden; font-size: 14px;
 }
 .pretty-table thead th {
-  position: sticky;
-  top: 0;
-  background: #f6f8fb;
-  color: #374151;
-  font-weight: 700;
-  text-align: left;
-  padding: 12px 14px;
-  border-bottom: 1px solid #e5e7eb;
-  z-index: 1;
+  position: sticky; top: 0; background: #f6f8fb; color: #374151; font-weight: 700;
+  text-align: left; padding: 12px 14px; border-bottom: 1px solid #e5e7eb; z-index: 1;
 }
-.pretty-table tbody td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f3f5;
-  vertical-align: middle;
+.pretty-table tbody td { padding: 12px 14px; border-bottom: 1px solid #f1f3f5; vertical-align: middle; }
+.pretty-table tbody tr:last-child td { border-bottom: none; }
+.pretty-table tbody tr:nth-child(odd) td { background: #fafbff; }
+.pretty-table tbody tr:hover td { background: #eef4ff; }
+.pretty-table .action-cell { text-align: center; white-space: nowrap; }
+.pretty-table .join-btn { height: 32px; line-height: 32px; padding: 0 12px; }
+
+/* 제목 영역 (중복 제거 후 최종본) */
+.room-title { width: 100%; max-width: 900px; margin: 22px auto 6px; font-size: 24px; font-weight: 800; padding: 0 12px; }
+.room-actions { width:100%; max-width:800px; margin: 6px auto 12px; }
+
+/* ========== Chat UI ========== */
+.chat-panel{
+  width:100%; max-width:800px; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.06); display:flex; flex-direction:column; overflow:hidden;
 }
-.pretty-table tbody tr:last-child td {
-  border-bottom: none;
+.chat-list{
+  padding:16px 14px 8px; display:flex; flex-direction:column; gap:10px;
+  max-height:60vh; overflow:auto; scroll-behavior:smooth;
 }
 
-/* 줄무늬 + hover */
-.pretty-table tbody tr:nth-child(odd) td {
-  background: #fafbff;
+.message{
+  display:flex; align-items:flex-end; gap:10px; margin-bottom: 8px;
 }
-.pretty-table tbody tr:hover td {
-  background: #eef4ff;
-}
+.message.other { justify-content:flex-start; } /* 다른 사람이 쓴 글 = 왼쪽 */
+.message.mine  { justify-content:flex-end; }   /* 내가 쓴 글 = 오른쪽 */
+.message.system{ justify-content:center; opacity:.9; } /* 방송/시스템 = 가운데 */
 
-/* 액션 열 정렬 */
-.pretty-table .action-cell {
-  text-align: center;
-  white-space: nowrap;
-}
-
-/* 버튼 살짝 더 또렷하게 */
-.pretty-table .join-btn {
-  height: 32px;
-  line-height: 32px;
-  padding: 0 12px;
-}
-
-/* 제목 영역 */
-.room-title {
-  width: 100%;
-  max-width: 900px;
-  margin: 22px auto 6px;
-  font-size: 24px;
-  font-weight: 800;
-  padding: 0 12px;
-}
-
-
-/* ===== 상단 바(topbar) ===== */
-.topbar {
-  position: relative;
-  left: 0;
-  top: 0;
-  width: 100vw;                 /* ✅ 뷰포트 전체 너비 */
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 12px;
-  color: #fff;
-  background: #000;             /* ✅ 검정색 바 */
-  box-shadow: 0 1px 0 rgba(0,0,0,0.06);
-  z-index: 100;
-}
-.topbar .topbar-text {
-  font-size: 14px;
-  opacity: 0.95;
-}
-
-.avatar {
+.avatar{
+  width:34px; height:34px; border-radius:50%;
   background-color: var(--avatar-color, #888);
+  color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; flex:0 0 auto;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15);
 }
 
-.message {
-  display: flex;
-  margin-bottom: 8px;
+/* 버블(단일 정의) */
+.bubble{
+  max-width:70%; background:#f4f6f8; border-radius:14px; padding:8px 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06); word-break: break-word;
 }
-.message.mine { justify-content: flex-end; }   /* 오른쪽 (남이 쓴 글) */
-.message.other { justify-content: flex-start; }/* 왼쪽 (내가 쓴 글) */
-.message.system { justify-content: center; }   /* 가운데 (방송/시스템) */
+.message.mine .bubble{ background:#e8f0ff; }
+.message.system .bubble{ background:#fff3cd; color:#5c4800; border:1px solid #f3e2a6; }
 
-.message.system.whisper-in .bubble .actions {
-  margin-top: 6px;
+.meta{ font-size:12px; color:#6b7280; margin-bottom:4px; }
+.name{ font-weight:700; }
+.text{ font-size:14px; line-height:1.5; color:#222; }
+.bubble-gif{ max-width:280px; width:100%; height:auto; border-radius:10px; display:block; }
+.socket-id-display{ cursor:pointer; text-decoration:underline; }
+
+/* 귓속말 타입 */
+.message.type-whisper .bubble{
+  background:#fff0f0; border:1px dashed #f08a8a;
 }
-.message.system.whisper-in .bubble .meta {
-  font-weight: 600;
-  margin-bottom: 4px;
+.message.system.whisper-in .bubble .actions{ margin-top: 6px; }
+.message.system.whisper-in .bubble .meta{ font-weight: 600; margin-bottom: 4px; }
+.message.system.whisper-out .bubble .meta{ opacity: 0.8; }
+
+/* 방송 타입: 전체 폭 + 스타일 */
+.message.type-broadcast{ width: 100%; display: block; }
+.message.type-broadcast .bubble{
+  width: 100%; max-width: 100%; background: #f0fff0; border: 1px solid #9ad19a;
 }
-.message.system.whisper-out .bubble .meta {
-  opacity: 0.8;
+.message.type-broadcast .meta{
+  display: flex; align-items: center; gap: .5rem; font-weight: 600;
+}
+.message.type-broadcast .text{ font-size: 1rem; }
+.shout-icon { font-size: 1.1rem; }
+.badge.type-broadcast{
+  background: #e6fae6; padding: 0 .5rem; border-radius: 999px; font-size: .75rem;
+}
+
+/* 입력 컴포저 */
+.composer{
+  border-top:1px solid #eaeaea; backdrop-filter: blur(2px);
+  background:#fafafa; padding:10px; display:flex; flex-direction:column; gap:8px;
+  position:sticky; bottom:0;
+}
+.composer-row{ display:grid; grid-template-columns: auto 1fr auto; gap:8px; align-items:center; }
+.composer-row.whisper{ grid-template-columns: auto 1fr auto auto; }
+.composer-label{ font-size:12px; color:#666; padding:0 6px; }
+.whisper-target{ font-size:12px; color:#444; }
+.btn.whisper-reply{
+  font-size: 0.75rem; padding: 2px 6px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer;
+}
+.btn.whisper-reply:hover{ background: #f1f1f1; }
+
+/* 좁은 화면 최적화 */
+@media (max-width: 640px){
+  .bubble{ max-width:85%; }
+  .composer-row{ grid-template-columns: auto 1fr auto; }
 }

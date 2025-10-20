@@ -129,6 +129,7 @@ exports.sendChat = async(req, res, next)=>{
             user: nick,
             userId: userId,
             color: color,
+            from: nick,
             chatType: 'local',
             chat: chatData,
         });
@@ -155,6 +156,7 @@ exports.broadcastChat = async(req, res, next)=>{
             user: nick,
             userId: userId,
             color: color,
+            from: nick,
             chatType: 'broadcast',
             chat: chatData,
         });
@@ -181,6 +183,7 @@ exports.sendGif = async(req, res, next) =>{
             user: nick,
             userId: userId,
             color: color,
+            from:nick,
             chat: chatData,
             gif: fileName,
         });
@@ -209,11 +212,12 @@ exports.whisperChat = async(req, res, next)=>{
 
         const chat = await Chat.create({
             room: roomId,
-            user: targetSocketUser,
+            user: nick,
             userId: userId,
             color: color,
             chatType: 'whisper',
             from: sourceSocketUser,  //임시
+            to: targetSocketUser,
             chat: chatData,
         });
         const io = req.app.get('io');

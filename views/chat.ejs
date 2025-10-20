@@ -7,36 +7,79 @@
 <section class="chat-panel">
   <div id="chat-list" class="chat-list">
     <% chats.forEach(function(chat){ 
+         const type = chat.chatType || 'local';
+         const from = chat.user || chat.from;
+         const to   = chat.to || '';
          const isSystem = chat.user === 'system';
-         const isMine = String(chat.user) === String(user);
+         const isMine = String(from) === String(user);
+         const isWhisper = type === 'whisper';
+         const isBroadcast = type === 'broadcast';
+         const typeClass = isWhisper ? 'type-whisper' : (isBroadcast ? 'type-broadcast' : 'type-local');
+
          const sock = chat.socketId || '';
          const shortSock = sock ? `${sock.substring(0,4)}...` : '';
     %>
-      <div class="message <%= isSystem ? 'system' : (isMine ? 'mine' : 'other') %>">
-        <% if (!isSystem) { %>
+      <div 
+        class="message <%= isSystem ? 'system' : (isMine ? 'mine' : 'other') %> <%= typeClass %>"
+        <% if (isWhisper) { %>
+          data-reply-socket-id="<%= sock %>" 
+          data-reply-user="<%= from %>"
+        <% } %>
+      >
+        <% /* 방송일 때도 아바타 숨김: not isSystem && not isWhisper && not isBroadcast */ %>
+        <% if (!isSystem && !isWhisper && !isBroadcast) { %>
           <div class="avatar" style="--avatar-color:<%= chat.color || '#888' %>;">
-            <%= (String(chat.user||'U').charAt(0) || 'U').toUpperCase() %>
+            <%= (String(from||'U').charAt(0) || 'U').toUpperCase() %>
           </div>
         <% } %>
 
-        <div class="bubble">
-          <% if (!isSystem) { %>
-            <div class="meta">
-              <span class="name socket-id-display" data-socket-id="<%= sock %>">
-                <%= chat.user || 'Guest' %> <%= shortSock ? '(' + shortSock + ')' : '' %>
-              </span>
-            </div>
-          <% } %>
-
-          <% if (chat.gif) { %>
-            <img class="bubble-gif" src="/gif/<%= chat.gif %>" alt="gif">
-          <% } else { %>
+        <div class="bubble <%= isBroadcast ? 'broadcast-bubble' : '' %>">
+          <% if (isWhisper) { %>
+            <!-- 귓속말 -->
+            <div class="meta">[귓속말] <%= from || sock %> → <%= isMine ? (to || '상대') : '나' %></div>
             <div class="text"><%= chat.chat %></div>
+            <div class="actions">
+              <button type="button" class="btn btn-light whisper-reply"
+                      data-socket-id="<%= sock %>"
+                      data-user="<%= from %>">답장</button>
+            </div>
+
+          <% } else if (isBroadcast) { %>
+            <!-- 방송: 전체 폭 + 외치기 아이콘 -->
+            <div class="meta">
+              <span class="shout-icon" aria-hidden="true">📢</span>
+              <span class="badge type-broadcast">방송</span>
+              <span class="route"><%= from || 'Guest' %> → 모두</span>
+              <span class="sock socket-id-display" data-socket-id="<%= sock %>"><%= shortSock ? '(' + shortSock + ')' : '' %></span>
+            </div>
+            <% if (chat.gif) { %>
+              <img class="bubble-gif" src="/gif/<%= chat.gif %>" alt="gif">
+            <% } else { %>
+              <div class="text"><%= chat.chat %></div>
+            <% } %>
+
+          <% } else { %>
+            <!-- 일반(local) -->
+            <% if (!isSystem) { %>
+              <div class="meta">
+                <span class="name socket-id-display" data-socket-id="<%= sock %>">
+                  <%= from || 'Guest' %> <%= shortSock ? '(' + shortSock + ')' : '' %>
+                </span>
+                <span class="badge type-local">일반</span>
+              </div>
+            <% } %>
+            <% if (chat.gif) { %>
+              <img class="bubble-gif" src="/gif/<%= chat.gif %>" alt="gif">
+            <% } else { %>
+              <div class="text"><%= chat.chat %></div>
+            <% } %>
           <% } %>
         </div>
       </div>
     <% }) %>
   </div>
+</section>
+
 
   <!-- 입력영역(작은 화면에서는 항상 하단 고정) -->
   <div class="composer">
@@ -100,43 +143,48 @@
 
 
   // 귓속말 수신
-  socket.on('whisper', data => {
-    // data: { fromSocketId, fromUser, chat }
-    const div = document.createElement('div');
-    div.className = 'message system whisper-in';
-    // 답장에 쓰기 위해 데이터 보관
-    div.dataset.replySocketId = data.fromSocketId || '';
-    div.dataset.replyUser = data.fromUser || '';
+socket.on('whisper', data => {
+  // data: { fromSocketId, fromUser, chat }
+  const div = document.createElement('div');
+  // 기존 클래스 + 타입 구분 클래스 추가
+  div.className = 'message system whisper-in type-whisper';
 
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
+  // 답장에 쓰기 위해 데이터 보관
+  div.dataset.replySocketId = data.fromSocketId || '';
+  div.dataset.replyUser = data.fromUser || '';
 
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.innerHTML = `[귓속말] ${data.fromUser || data.fromSocketId} → 나`;
-    bubble.appendChild(meta);
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble whisper-bubble'; // 버블에도 타입 클래스 추가
 
-    const text = document.createElement('div');
-    text.className = 'text';
-    text.textContent = data.chat || '';
-    bubble.appendChild(text);
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.innerHTML = `[귓속말] ${data.fromUser || data.fromSocketId} → 나`;
+  bubble.appendChild(meta);
 
-    // 답장 버튼
-    const actions = document.createElement('div');
-    actions.className = 'actions';
-    const replyBtn = document.createElement('button');
-    replyBtn.type = 'button';
-    replyBtn.className = 'btn btn-light whisper-reply';
-    replyBtn.dataset.socketId = data.fromSocketId || '';
-    replyBtn.dataset.user = data.fromUser || '';
-    replyBtn.textContent = '답장';
-    actions.appendChild(replyBtn);
-    bubble.appendChild(actions);
+  const text = document.createElement('div');
+  text.className = 'text';
+  text.textContent = data.chat || '';
+  bubble.appendChild(text);
 
-    div.appendChild(bubble);
-    chatList.appendChild(div);
-    chatList.scrollTop = chatList.scrollHeight;
-  });
+  // 답장 버튼
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const replyBtn = document.createElement('button');
+  replyBtn.type = 'button';
+  replyBtn.className = 'btn btn-light whisper-reply';
+  replyBtn.dataset.socketId = data.fromSocketId || '';
+  replyBtn.dataset.user = data.fromUser || '';
+  replyBtn.textContent = '답장';
+  actions.appendChild(replyBtn);
+  bubble.appendChild(actions);
+
+  div.appendChild(bubble);
+  chatList.appendChild(div);
+
+  // 부드럽게 맨 아래로
+  div.scrollIntoView({ block: 'end' });
+});
+
 
   // 일반/실시간 채팅
   socket.on('chat', function (data) {
@@ -183,20 +231,80 @@
     chatList.scrollTop = chatList.scrollHeight;
   });
 
+  // // 방송 채팅
+  // socket.on('broadcastchat', data => {
+  //   const isMine = data.user === '<%= user %>';
+  //   const item = document.createElement('div');
+  //   item.className = 'message ' + (isMine ? 'mine' : 'other');
+  //   const bubble = document.createElement('div');
+  //   bubble.className = 'bubble';
+  //   bubble.innerHTML = `<div class="meta"><span class="name">${data.user}</span></div>`;
+  //   if (data.chat) bubble.innerHTML += `<div class="text">${data.chat}</div>`;
+  //   if (data.gif)  bubble.innerHTML += `<img class="bubble-gif" src="/gif/${data.gif}">`;
+  //   item.appendChild(bubble);
+  //   chatList.appendChild(item);
+  //   chatList.scrollTop = chatList.scrollHeight;
+  // });
+
   // 방송 채팅
-  socket.on('broadcastchat', data => {
-    const isMine = data.user === '<%= user %>';
-    const item = document.createElement('div');
-    item.className = 'message ' + (isMine ? 'mine' : 'other');
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
-    bubble.innerHTML = `<div class="meta"><span class="name">${data.user}</span></div>`;
-    if (data.chat) bubble.innerHTML += `<div class="text">${data.chat}</div>`;
-    if (data.gif)  bubble.innerHTML += `<img class="bubble-gif" src="/gif/${data.gif}">`;
-    item.appendChild(bubble);
-    chatList.appendChild(item);
-    chatList.scrollTop = chatList.scrollHeight;
-  });
+socket.on('broadcastchat', data => {
+  // data: { user, chat, gif, socketId? }
+  const item = document.createElement('div');
+  item.className = 'message system type-broadcast';   // 전체 폭 + 중앙 정렬
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble broadcast-bubble';       // 방송 전용 버블 스타일
+
+  // 메타: 📢 아이콘 + 방송 배지 + 라우팅 + (선택) 소켓ID
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+
+  const icon = document.createElement('span');
+  icon.className = 'shout-icon';
+  icon.textContent = '📢';
+
+  const badge = document.createElement('span');
+  badge.className = 'badge type-broadcast';
+  badge.textContent = '방송';
+
+  const route = document.createElement('span');
+  route.className = 'route';
+  route.textContent = `${data.user || 'Guest'} → 모두`;
+
+  meta.append(icon, badge, route);
+
+  // (선택) 짧은 소켓ID 표시
+  if (data.socketId) {
+    const shortSock = `${String(data.socketId).substring(0,4)}...`;
+    const sock = document.createElement('span');
+    sock.className = 'sock socket-id-display';
+    sock.dataset.socketId = data.socketId;
+    sock.textContent = ` (${shortSock})`;
+    meta.appendChild(sock);
+  }
+
+  bubble.appendChild(meta);
+
+  // 본문/이미지
+  if (data.chat) {
+    const text = document.createElement('div');
+    text.className = 'text';
+    text.textContent = data.chat;     // XSS 안전
+    bubble.appendChild(text);
+  }
+  if (data.gif) {
+    const img = document.createElement('img');
+    img.className = 'bubble-gif';
+    img.src = `/gif/${data.gif}`;
+    img.alt = 'gif';
+    bubble.appendChild(img);
+  }
+
+  item.appendChild(bubble);
+  chatList.appendChild(item);
+  item.scrollIntoView({ block: 'end' });
+});
+
 
   const whisperTargetUserInput = document.querySelector('#whisper-target-user');
   
@@ -289,46 +397,69 @@
       .catch(console.error);
   });
 
-  document.querySelector('#whisperchat-form').addEventListener('submit', function (e) {
-    e.preventDefault();
 
-    const targetSocketId = this.targetSocketId.value?.trim();
-    const chat = this.chat.value?.trim();
-    const targetSocketUser = this.targetSocketUser.value?.trim();
-    const sourceSocketUser = this.sourceSocketUser.value?.trim();
+document.querySelector('#whisperchat-form').addEventListener('submit', function (e) {
+  e.preventDefault();
 
-    if (targetSocketId && chat) {
-      axios.post('/room/<%= room._id %>/whisperchat', {
-        targetSocketId,
-        targetSocketUser,
-        sourceSocketUser,
-        chat,
-      })
-      .then(() => {
-        // 내 화면에도 "내가 보낸 귓속말" 표시
-        const div = document.createElement('div');
-        div.className = 'message system whisper-out';
+  const targetSocketId = this.targetSocketId.value?.trim();
+  const chat = this.chat.value?.trim();
+  const targetSocketUser = this.targetSocketUser.value?.trim();
+  const sourceSocketUser = this.sourceSocketUser.value?.trim();
 
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-        const shortSock = targetSocketId.substring(0, 4) + '...';
-        bubble.innerHTML =
-          `<div class="meta">[귓속말] 나 → ${targetSocketUser || shortSock}</div>` +
-          `<div class="text"></div>`;
-        bubble.querySelector('.text').textContent = chat;
+  if (targetSocketId && chat) {
+    axios.post('/room/<%= room._id %>/whisperchat', {
+      targetSocketId,
+      targetSocketUser,
+      sourceSocketUser,
+      chat,
+    })
+    .then(() => {
+      // 내 화면에도 "내가 보낸 귓속말" 표시
+      const div = document.createElement('div');
+      div.className = 'message system whisper-out type-whisper'; // 통일된 타입 클래스 추가
 
-        div.appendChild(bubble);
-        chatList.appendChild(div);
-        chatList.scrollTop = chatList.scrollHeight;
+      // 답장용 데이터 보관
+      div.dataset.replySocketId = targetSocketId;
+      div.dataset.replyUser = targetSocketUser;
 
-        // 폼 리셋
-        this.chat.value = '';
-        this.targetSocketId.value = '';
-        this.style.display = 'none';
-      })
-      .catch(console.error);
-    }
-  });
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble whisper-bubble'; // 버블 타입 클래스
 
+      // meta: 보낸 쪽이므로 나 → 상대
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = `[귓속말] 나 → ${targetSocketUser || (targetSocketId.substring(0, 4) + '...')}`;
+      bubble.appendChild(meta);
+
+      // 본문
+      const textEl = document.createElement('div');
+      textEl.className = 'text';
+      textEl.textContent = chat;
+      bubble.appendChild(textEl);
+
+      // 답장 버튼 (상대에게 바로 답장할 수 있게)
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      const replyBtn = document.createElement('button');
+      replyBtn.type = 'button';
+      replyBtn.className = 'btn btn-light whisper-reply';
+      replyBtn.dataset.socketId = targetSocketId;
+      replyBtn.dataset.user = targetSocketUser;
+      replyBtn.textContent = '답장';
+      actions.appendChild(replyBtn);
+      bubble.appendChild(actions);
+
+      div.appendChild(bubble);
+      chatList.appendChild(div);
+      div.scrollIntoView({ block: 'end' }); // 부드럽게 스크롤
+
+      // 폼 리셋
+      this.chat.value = '';
+      this.targetSocketId.value = '';
+      this.style.display = 'none';
+    })
+    .catch(console.error);
+  }
+});
 
 </script>
