@@ -1,5 +1,7 @@
 const socketIo = require('socket.io');
 const cookieParser = require('cookie-parser'); // 🚨 cookieParser 모듈을 여기서 다시 로드합니다.
+const path = require('path');
+const Room = require(path.join(__dirname, '..', 'schemas', 'room'));
 
 module.exports = (server, app, sessionMiddleware) =>{
     const io = socketIo(server, 
@@ -83,6 +85,10 @@ module.exports = (server, app, sessionMiddleware) =>{
                 user: 'system',
                 chat: `Guest님이 입장하셨습니다.`
             })
+            
+            if (roomId) {
+                broadcastRoomCount(io, roomId);
+            }
         });
 
         socket.on('disconnect', ()=>{
@@ -95,7 +101,11 @@ module.exports = (server, app, sessionMiddleware) =>{
                     if (err) console.error('세션 제거 실패:', err);
                 });
             }
-        });
+
+            if (roomId) {
+                broadcastRoomCount(io, roomId);
+            }
+        }); 
 
         socket.on('connect_error', (err) => {
             console.error('connect_error:', err);
@@ -103,6 +113,37 @@ module.exports = (server, app, sessionMiddleware) =>{
     })
 };
 
+
+/* ============== 유틸: 현재 인원 산출 + 브로드캐스트 ============== */
+  async function broadcastRoomCount(io, roomId) {
+    try {
+      // 1) 현재 소켓 연결 기준 인원 수 (실시간)
+      const ns = io.of('/chat');
+      const size = ns.adapter.rooms.get(roomId)?.size || 0;
+
+      console.log(`broadcastRoomCount : ${roomId} : ${size}`)
+      // 2) DB에도 반영 (선택: current 필드가 있다면)
+      //    없다면 이 블록은 생략 가능
+      const updated = await Room.findByIdAndUpdate(
+        roomId,
+        { current: size },
+        { new: true, lean: true }
+      ).catch(() => null);
+
+      const max = updated?.max ?? (await Room.findById(roomId).lean())?.max ?? 0;
+
+      // 3) 목록 페이지로 브로드캐스트 (rooms namespace)
+      io.of('/room').emit('roomCount', {
+        roomId,
+        current: size,
+        max
+      });
+
+      console.log(`[roomCount] roomId=${roomId}, current=${size}, max=${max}`);
+    } catch (e) {
+      console.error('broadcastRoomCount 오류:', e);
+    }
+  };
 
 function getClientIp(req) {
     // 1) CDN/프록시가 줄 수 있는 헤더 우선

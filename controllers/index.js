@@ -16,7 +16,11 @@ exports.renderIndex = async(req, res, next) =>{
 
 exports.renderMain = async(req, res, next)=> {
     try{
-        const rooms = await Room.find({});
+        //const rooms = await Room.find({});
+        const rooms = await Room.find({})
+                .sort({ createdAt: -1 })   // 최신순 정렬 (내림차순)   오름차순 : 1
+                .limit(10);         
+
         return res.render('main', {rooms, title: 'GIF 채팅방'});
     }catch(err){
         console.log(err);
@@ -36,7 +40,7 @@ exports.createRoom = async(req, res, next)=>{
         const newRoom = await Room.create({
             title: title,
             max : max,
-            owner: req.user.nick, //req.session.color,
+            owner: req.user.nick, 
             ownerId: req.user._id,
             password: password,
         });
