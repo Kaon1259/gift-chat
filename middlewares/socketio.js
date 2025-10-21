@@ -74,16 +74,33 @@ module.exports = (server, app, sessionMiddleware) =>{
             }
         });
 
-        socket.on('join', (roomId)=>{
-            console.log(`chat.join : data = ${roomId}`);
+        // socket.on('join', (roomId)=>{
+        //     console.log(`chat.join : data = ${roomId}`);
+        //     socket.join(roomId);
+
+        //     console.log(`socket.on:join: ${session.color}`);
+
+        //     socket.to(roomId).emit('join', {
+        //         user: 'system',
+        //         chat: `Guest님이 입장하셨습니다.`
+        //     })
             
+        //     if (roomId) {
+        //         broadcastRoomCount(io, roomId);
+        //     }
+        // });
+
+         socket.on('join', (payload)=>{
+            const {roomId, user} = payload;
+
+            console.log(`chat.join : data = ${roomId} : ${user.nick}`);
             socket.join(roomId);
 
             console.log(`socket.on:join: ${session.color}`);
 
             socket.to(roomId).emit('join', {
-                user: 'system',
-                chat: `Guest님이 입장하셨습니다.`
+                user: user.nick,
+                chat: `${user.nick}님이 입장하셨습니다.`
             })
             
             if (roomId) {
@@ -91,8 +108,24 @@ module.exports = (server, app, sessionMiddleware) =>{
             }
         });
 
+        socket.on('leave', (payload, ack) => {
+            const {roomId, user} = payload;
+            socket.leave(roomId);
+
+            const ns = io.of('/chat');
+            // 남은 인원 수 갱신 및 브로드캐스트
+            const size = ns.adapter.rooms.get(roomId)?.size || 0;
+            ns.to(roomId).emit('leave', { chat: `${user?.nick}님이 퇴장 하셨습니다.` });
+
+            // 클라이언트에 ACK 응답 → 이동 허용
+            ack && ack();  
+
+            broadcastRoomCount(io, roomId);
+        });
+
         socket.on('disconnect', ()=>{
             console.log(`chat namespace 접속해제 : ${socket.id}`)
+            
             const session = socket.request.session;
             if (session && session.socketId === socket.id) {
                 delete session.socketId;
@@ -100,10 +133,6 @@ module.exports = (server, app, sessionMiddleware) =>{
                 session.save(err => {
                     if (err) console.error('세션 제거 실패:', err);
                 });
-            }
-
-            if (roomId) {
-                broadcastRoomCount(io, roomId);
             }
         }); 
 
@@ -122,8 +151,7 @@ module.exports = (server, app, sessionMiddleware) =>{
       const size = ns.adapter.rooms.get(roomId)?.size || 0;
 
       console.log(`broadcastRoomCount : ${roomId} : ${size}`)
-      // 2) DB에도 반영 (선택: current 필드가 있다면)
-      //    없다면 이 블록은 생략 가능
+      
       const updated = await Room.findByIdAndUpdate(
         roomId,
         { current: size },

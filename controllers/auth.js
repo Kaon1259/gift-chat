@@ -49,56 +49,8 @@ const join = async(req, res, next)=>{
 };
 
 
-// const login = (req, res, next)=>{
-    
-//     console.log(`auth/login : ${req.body.email} : ${req.body.password}`)
-
-//     //'local' Stratergy를 실행하고 (authError, ...) 콜백 함수를 호출해서 전달해 준다...
-//     passport.authenticate('local', async(authError, user, info)=>{
-//         if(authError){
-//             console.log(authError);
-//             return next(authError);
-//         }
-
-//         if(!user){
-//             return res.redirect(`/?error=${info.message}`);
-//         }
-
-//          // 1) 세션ID 재발급 (중요!)
-//         req.session.regenerate((regenErr) => {
-//             if (regenErr) return next(regenErr);
-//         });
-
-//         try {
-//         // 1) 로그인(세션에 유저 적재)
-//         await new Promise((resolve, reject) => {
-//             req.login(user, (loginError) => {
-//             if (loginError) return reject(loginError);
-
-//             return resolve();
-//             });
-//         });
-
-//         // 2) (중요) 세션 저장이 끝난 뒤에 리다이렉트 — 레이스컨디션 방지
-//         if (req.session) {
-//             console.log(`login : ${req.session}, sessionId : ${req.sessionID}`);
-//             req.session.save((saveErr) => {
-//             if (saveErr) return next(saveErr);
-
-//             return res.redirect('/'); // 성공
-//             });
-//         } else {
-//             // 세션 미들웨어가 없을 때 대비 (개발 중 오류 방지)
-//             return res.redirect('/');
-//         }
-//         } catch (e) {
-//         return next(e);
-//         }
-//     })(req, res, next);
-// };
-
 const login = (req, res, next) => {
-  passport.authenticate('local', (authError, user, info) => {
+  passport.authenticate(process.env.LOCAL_PROVIDER, (authError, user, info) => {
     if (authError) return next(authError);
     if (!user) return res.redirect(`/?error=${info?.message || '로그인 실패'}`);
 
@@ -118,6 +70,19 @@ const login = (req, res, next) => {
       });
     });
   })(req, res, next);
+};
+
+const kakaoLogin = (req, res, next)=>{
+    console.log(`kakaoLogin ${req.method}`);
+    return passport.authenticate(process.env.KAKAO_PROVIDER)(req, res, next);
+};
+
+
+const kakaoCallback = (req, res, next) =>{
+    return passport.authenticate(process.env.KAKAO_PROVIDER, {
+        failureRedirect: '/?error=카카오 로그인 실패',
+        successRedirect: '/',
+    })(req, res, next);
 };
 
 
@@ -159,4 +124,4 @@ const logout = (req, res, next) => {
     }
 };
 
-module.exports = {renderJoin, renderLogin, join, login, logout};
+module.exports = {renderJoin, renderLogin, join, login, kakaoLogin, kakaoCallback, logout};

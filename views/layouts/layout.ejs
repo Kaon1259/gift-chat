@@ -18,19 +18,29 @@
       <% } %>
     </div>
 
+    <% const menu = (typeof activeMenu !== 'undefined' && activeMenu) ? activeMenu : ''; %>
     <!-- 메뉴 바 -->
     <nav class="navbar">
-      <% if (typeof user !== 'undefined' && user) { %>
-        <!-- ✅ 로그인 상태: 회원가입 + 로그아웃 -->
-        <a href="/auth/join">회원가입</a>
-        <a href="/auth/logout">로그아웃</a>
-      <% } else { %>
-        <!-- ✅ 비로그인 상태: 홈 / 로그인 / 회원가입 -->
-        <a href="/">홈</a>
-        <a href="/auth/login">로그인</a>
-        <a href="/auth/join">회원가입</a>
+    <% if (typeof user !== 'undefined' && user) { %>
+      <a href="/auth/logout">로그아웃</a>
+      <% if (menu === 'friends') { %>
+        <!-- 친구목록 화면일 때: 채팅목록만 보이게 -->
+        <a href="/">채팅목록</a>
+      <% } else if (menu === 'rooms') { %>
+        <!-- 채팅목록 화면일 때: 친구목록만 보이게 -->
+        <a href="/friend">친구목록</a>
+    <% } else { %>
+        <!-- 그 외(미지정)일 때: 둘 다 보이게(선택) -->
+        <a href="/">채팅목록</a>
+        <a href="/friend">친구목록</a>
       <% } %>
-    </nav>
+  <% } else { %>
+    <a href="/">홈</a>
+    <a href="/auth/login">로그인</a>
+    <a href="/auth/join">회원가입</a>
+  <% } %>
+</nav>
+
   </header>
 
   <main class="container">

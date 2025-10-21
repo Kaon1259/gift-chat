@@ -11,6 +11,8 @@ router.route('/room')
     .post(isLoggedIn, createRoom);
 
 router.use('/room/:id', require('./chat'));
+router.use('/glimpse/:id', require('./glimpse'));
 router.use('/auth', require('./auth'));
-    
+router.use('/friend', require('./friend'));
+
 module.exports = router;

@@ -45,8 +45,7 @@
               <div class="actions">
                 <button type="button" class="btn btn-light whisper-reply"
                   data-socket-id="<%= sock %>"
-                  data-user="<%= from %>"
-                  data-fromuser-id="<%= fromUserId %>">답장</button>
+                  data-user="<%= from %>">답장</button>
               </div>
             <% } %>
           <% } else if (isBroadcast) { %>
@@ -55,8 +54,7 @@
               <span class="shout-icon" aria-hidden="true">📢</span>
               <span class="badge type-broadcast">방송</span>
               <span class="route"><%= from || 'Guest' %> → 모두</span>
-              <span class="sock socket-id-display" data-socket-id="<%= sock %>" 
-                            data-fromuser-id="<%= fromUserId %>"><%= shortSock ? '(' + shortSock + ')' : '' %></span>
+              <span class="sock socket-id-display" data-socket-id="<%= sock %>"><%= shortSock ? '(' + shortSock + ')' : '' %></span>
             </div>
             <% if (chat.gif) { %>
               <img class="bubble-gif" src="/gif/<%= chat.gif %>" alt="gif">
@@ -68,7 +66,7 @@
             <!-- 일반(local) -->
             <% if (!isSystem) { %>
               <div class="meta">
-                <span class="name socket-id-display" data-socket-id="<%= sock %>" data-fromuser-id="<%= fromUserId %>">
+                <span class="name socket-id-display" data-socket-id="<%= sock %>">
                   <%= from || 'Guest' %> <%= shortSock ? '(' + shortSock + ')' : '' %>
                 </span>
                 <span class="badge type-local">일반</span>
@@ -85,12 +83,6 @@
     <% }) %>
   </div>
 </section>
-
-<!-- ✅ 메시지 우클릭 컨텍스트 메뉴 -->
-<div id="msg-context" class="context-menu" hidden>
-  <button type="button" class="context-item" data-action="whisper">귓속말</button>
-  <button type="button" class="context-item" data-action="friend">친구요청</button>
-</div>
 
 
   <!-- 입력영역(작은 화면에서는 항상 하단 고정) -->
@@ -119,6 +111,7 @@
       <button type="button" id="whisper-cancel-btn" class="btn btn-light">취소</button>
     </form>
   </div>
+</section>
 
 <!-- 기존 스크립트는 그대로 사용 (socket, axios 등) -->
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
@@ -181,9 +174,6 @@ socket.on('whisper', data => {
   // 답장에 쓰기 위해 데이터 보관
   div.dataset.replySocketId = data.fromSocketId || '';
   div.dataset.replyUser = data.fromUser || '';
-  div.dataset.replyfromuserId = data.chat.userId || ''; 
-
-  alert("userId : " + data.chat.userId);
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble whisper-bubble'; // 버블에도 타입 클래스 추가
@@ -206,7 +196,6 @@ socket.on('whisper', data => {
   replyBtn.className = 'btn btn-light whisper-reply';
   replyBtn.dataset.socketId = data.fromSocketId || '';
   replyBtn.dataset.user = data.fromUser || '';
-  replyBtn.dataset.fromuserId = data.chat.userId || ''; 
   replyBtn.textContent = '답장';
   actions.appendChild(replyBtn);
   bubble.appendChild(actions);
@@ -244,7 +233,6 @@ socket.on('whisper', data => {
     name.className = 'name socket-id-display';
     name.dataset.socketId = data.socketId || '';
     name.textContent = `${doc.user || 'Guest'} ${data.socketId ? '(' + data.socketId.substring(0,4) + '...)' : ''}`;
-    name.dataset.fromuserId = data.chat.userId || ''; 
     meta.appendChild(name);
     bubble.appendChild(meta);
 
@@ -299,7 +287,6 @@ socket.on('broadcastchat', data => {
     const sock = document.createElement('span');
     sock.className = 'sock socket-id-display';
     sock.dataset.socketId = data.socketId;
-    name.dataset.fromuserId = data.chat.userId || ''; 
     sock.textContent = ` (${shortSock})`;
     meta.appendChild(sock);
   }
@@ -378,7 +365,6 @@ socket.on('broadcastchat', data => {
     if (whisperMsg && whisperMsg.querySelector('.bubble')?.contains(e.target)) {
       const targetId = whisperMsg.dataset.replySocketId || '';
       const fromUser = whisperMsg.dataset.replyUser || '';
-      const fromUserId = whisperMsg.dataset.replyfromuserId || '';
       openWhisperForm(targetId, fromUser);
       return;
     }
@@ -462,6 +448,13 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
       // 답장 버튼 (상대에게 바로 답장할 수 있게)
       const actions = document.createElement('div');
       actions.className = 'actions';
+      // const replyBtn = document.createElement('button');
+      // replyBtn.type = 'button';
+      // replyBtn.className = 'btn btn-light whisper-reply';
+      // replyBtn.dataset.socketId = targetSocketId;
+      // replyBtn.dataset.user = targetSocketUser;
+      // replyBtn.textContent = '답장';
+      // actions.appendChild(replyBtn);
       bubble.appendChild(actions);
 
       div.appendChild(bubble);
@@ -537,147 +530,5 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
       // // 참여 성공 시 채팅방으로 이동
       // location.assign(`/chat/${roomId}`);
     });
-  })();
-
-
-  (function() {
-    const chatList = document.getElementById('chat-list');
-    const menu = document.getElementById('msg-context');
-
-    /** 현재 컨텍스트 대상 저장 */
-    let ctx = { socketId: '', user: '', fromUserId: '' };
-
-    /** 대상 추출: 우클릭한 요소 기준으로 socketId/닉네임 찾기 */
-    function extractTargetInfo(target) {
-      // 1) 귓속말로 온 메시지의 루트 (수신)
-      const whisperIn = target.closest('.message.whisper-in');
-      if (whisperIn && (whisperIn.dataset.replySocketId || whisperIn.dataset.replyUser || whisperIn.dataset.replyfromuserId)) {
-        return {
-          socketId: whisperIn.dataset.replySocketId || '',
-          user: whisperIn.dataset.replyUser || '',
-          userId: whisperIn.dataset.replyfromuserId || '',
-        };
-      }
-
-      // 2) 일반/방송 메시지의 "이름(소켓ID)" 영역
-      const sockSpan = target.closest('.socket-id-display');
-      if (sockSpan) {
-        const socketId = sockSpan.dataset.socketId || '';
-        const fromUserId = sockSpan.dataset.fromUserId || '';
-        // 텍스트: "닉네임 (ABCD...)" 형태일 수 있음
-        const raw = (sockSpan.textContent || '').trim();
-        const user = raw.split(' (')[0] || '';
-        return { socketId, user, fromUserId };
-      }
-
-      // 3) 메시지 루트에서 socket-id-display 찾기 (버블 내부 등)
-      const msg = target.closest('.message');
-      if (msg) {
-        const inner = msg.querySelector('.socket-id-display');
-        if (inner) {
-          const socketId = inner.dataset.socketId || '';
-          const fromUserId = sockSpan.dataset.fromUserId || '';
-          const raw = (inner.textContent || '').trim();
-          const user = raw.split(' (')[0] || '';
-          return { socketId, user, fromUserId };
-        }
-      }
-
-      return { socketId: '', user: '', fromUserId: '' };
-    }
-
-    /** 메뉴 표시 */
-    function showMenu(x, y) {
-      menu.style.left = x + 'px';
-      menu.style.top = y + 'px';
-      menu.hidden = false;
-    }
-    /** 메뉴 숨김 */
-    function hideMenu() {
-      menu.hidden = true;
-      ctx = { socketId: '', user: '' };
-    }
-
-    /** 뷰포트 밖으로 삐져나가면 보정 */
-    function clampAndShow(x, y) {
-      const pad = 6;
-      const mw = 180;  // 대략적 메뉴 폭
-      const mh = 90;   // 대략적 메뉴 높이
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const nx = Math.min(Math.max(pad, x), vw - mw - pad);
-      const ny = Math.min(Math.max(pad, y), vh - mh - pad);
-      showMenu(nx, ny);
-    }
-
-    /** 우클릭 열기 */
-    chatList.addEventListener('contextmenu', (e) => {
-      // 우클릭 기본 메뉴 중단
-      e.preventDefault();
-
-      // 대상 정보 추출
-      const info = extractTargetInfo(e.target);
-
-      alert(info.socketId + ":" + info.user + ": " + socket.userId);
-
-      // socketId가 없거나 내 메시지(내 소켓)라면 메뉴 띄우지 않음
-      if (!info.socketId && !info.userId) { hideMenu(); return; }
-      if(info.socketId){
-        if (info.socketId === (socket && socket.id)) { hideMenu(); return; }
-      }else if(!info.userId){
-        hideMenu(); return;
-      }
-
-      ctx = info; // 저장
-      clampAndShow(e.clientX, e.clientY);
-    });
-
-    /** 메뉴 항목 클릭 */
-    menu.addEventListener('click', async (e) => {
-      const btn = e.target.closest('.context-item');
-      if (!btn) return;
-      const action = btn.dataset.action;
-
-      // 안전 가드
-      if (!ctx.socketId) { hideMenu(); return; }
-
-      if (action === 'whisper') {
-        // 기존 로직 재사용
-        openWhisperForm(ctx.socketId, ctx.user);
-        hideMenu();
-        return;
-      }
-
-      if (action === 'friend') {
-        try {
-          // ✅ 서버 API에 맞게 URL/페이로드 수정하세요.
-          // socketId만으로 서버에서 대상 유저를 resolve하도록 하거나,
-          // 가능한 경우 userId를 같이 넘기세요.
-          await axios.post('/friend/request', {
-            socketId: ctx.socketId,
-            targetNick: ctx.user || undefined,
-          });
-          alert('친구 요청을 보냈습니다.');
-        } catch (err) {
-          console.error(err);
-          alert('친구 요청 중 오류가 발생했습니다.');
-        } finally {
-          hideMenu();
-        }
-        return;
-      }
-    });
-
-    /** 메뉴 외부 클릭/스크롤/ESC로 닫기 */
-    document.addEventListener('click', (e) => {
-      if (!menu.hidden && !menu.contains(e.target)) hideMenu();
-    });
-    document.addEventListener('scroll', hideMenu, true);
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') hideMenu();
-    });
-
-    /** 모바일 롱프레스 대응(선택) */
-    // 필요하면 터치 길게 눌러서 contextmenu와 동일 동작하도록 구현할 수 있습니다.
   })();
 </script>

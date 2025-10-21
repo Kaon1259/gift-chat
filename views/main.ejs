@@ -1,4 +1,5 @@
 <section class="rooms-wrap">
+  
   <div class="rooms-card">
     <header class="rooms-head">
       <h2>채팅방 목록</h2>
@@ -23,6 +24,7 @@
             <th>종류</th>
             <th>인원</th>
             <th>방장</th>
+            <th>액션</th>
             <th>액션</th>
             <th>생성시간</th>
           </tr>
@@ -81,6 +83,12 @@
                 data-password="<%= room.password ? 'true' : 'false' %>"
                 data-id="<%= room._id %>"
                 class="btn join-btn">입장</button>
+            </td>
+            <td class="action-cell">
+              <button
+                data-password="<%= room.password ? 'true' : 'false' %>"
+                data-id="<%= room._id %>"
+                class="btn glimpse-btn">엿보기</button>
             </td>
             <td class="cell-created" title="<%= room.createdAt ? room.createdAt.toISOString() : '' %>">
               <span class="created-relative"><%= relativeText %></span>
@@ -179,13 +187,19 @@
           data-password="${data.password ? 'true' : 'false'}"
           data-id="${data._id}">입장</button>
       </td>
+      <td class="action-cell">
+        <button class="btn glimpse-btn"
+          data-password="${data.password ? 'true' : 'false'}"
+          data-id="${data._id}">엿보기</button>
+      </td>
       <td class="cell-created" title="${createdAt.toISOString()}">
         <span class="created-relative">${formatRelative(createdAt)}</span>
         <span class="created-sep"> · </span>
         <span class="created-abs">${formatAbsolute(createdAt)}</span>
       </td>
     `;
-    tbody.appendChild(tr);
+    //tbody.appendChild(tr);
+    tbody.insertBefore(tr, tbody.firstChild);
   });
 
   // ===== 인원 변경 브로드캐스트 수신: { roomId, current, max } =====
@@ -213,6 +227,20 @@
       location.href = '/room/' + btn.dataset.id;
     }
   });
+
+  // 엿보기 버튼
+  document.querySelector('#room-list tbody').addEventListener('click', function (e) {
+    const btn = e.target.closest('.glimpse-btn');
+    if (!btn) return;
+
+    if (btn.dataset.password === 'true') {
+      const password = prompt('비밀번호를 입력하세요');
+      location.href = '/glimpse/' + btn.dataset.id + '?password=' + encodeURIComponent(password || '');
+    } else {
+      location.href = '/glimpse/' + btn.dataset.id;
+    }
+  });
+
 
   // 에러 메시지 알림
   window.addEventListener('load', () => {

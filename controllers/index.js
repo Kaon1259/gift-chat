@@ -16,12 +16,11 @@ exports.renderIndex = async(req, res, next) =>{
 
 exports.renderMain = async(req, res, next)=> {
     try{
-        //const rooms = await Room.find({});
         const rooms = await Room.find({})
                 .sort({ createdAt: -1 })   // 최신순 정렬 (내림차순)   오름차순 : 1
                 .limit(10);         
 
-        return res.render('main', {rooms, title: 'GIF 채팅방'});
+        return res.render('main', {rooms, title: 'GIF 채팅방', activeMenu: 'rooms'});
     }catch(err){
         console.log(err);
         next(err);
@@ -94,6 +93,53 @@ exports.enterRoom = async(req, res, next) => {
             chats,
             nick:  nick,
             color: userColor,
+            glimpse: false,
+            // user:,
+        });
+
+    }catch(err){
+        console.log(err);
+        next(err);
+    }
+}
+
+exports.enterGlimpse = async(req, res, next) => {
+    try{
+        const id = req.params.id;
+        const password = req.query.password;
+        console.log(`enterGlimpse ; ${id}, ${password}`);
+
+        const room = await Room.findOne({_id: id});
+
+        if(!room){
+            return res.redirect('/?error=존재하지 않는 방 입니다.')
+        }
+
+        if(room.password && room.password !== password){
+            return res.redirect('/?error=비밀번호가 틀렸습니다.')
+        }
+
+        const io = req.app.get('io');
+        const {rooms} = io.of('/chat').adapter;
+        if(room.max <= rooms.get(id)?.size){
+            return res.redirect('/?error=허용 인원을 초과했습니다.')
+        }
+
+        //get chatting messages...
+        const chats = await Chat.find({ room: room._id }).sort('createdAt');
+        
+        const userColor =  req.session.color; 
+        const nick = req.user.nick;
+        
+        return res.render('chat', {
+            room,
+            title: room.title,
+            max: room.max,
+            createdAt: new Date(room.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+            chats,
+            nick:  nick,
+            color: userColor,
+            glimpse: true,
             // user:,
         });
 
@@ -220,7 +266,7 @@ exports.whisperChat = async(req, res, next)=>{
             userId: userId,
             color: color,
             chatType: 'whisper',
-            from: sourceSocketUser,  //임시
+            from: sourceSocketUser,  
             to: targetSocketUser,
             chat: chatData,
         });

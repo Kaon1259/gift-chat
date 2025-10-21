@@ -3,11 +3,13 @@ const passport = require('passport');
 
 const User = require(path.join(__dirname, '..', 'schemas', 'user'));
 const localStrategy = require(path.join(__dirname, '..', 'middlewares', 'localStrategy'));
+const kakaoStrategy = require(path.join(__dirname, '..', 'middlewares', 'kakaoStrategy'));
 
 module.exports = () =>{
 
      //strategy 등록,...
     localStrategy();
+    kakaoStrategy();
 
     passport.serializeUser((user, done)=>{
         console.log(`serializeUser : ${user.id}`);

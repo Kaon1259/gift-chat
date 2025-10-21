@@ -11,6 +11,12 @@ const roomSchema = new mongoose.Schema({
             default : 10,
             min: 2,
         },
+        current: {
+            type: Number,
+            required: true,
+            default : 0,
+            min: 0,
+        },
         owner:{
             type: String,
             required: true,
