@@ -27,6 +27,7 @@
         <% if (isWhisper) { %>
           data-reply-socket-id="<%= sock %>" 
           data-reply-user="<%= from %>"
+          data-reply-fromuser-id="<%= fromUserId %>"
         <% } %>
       >
         <% /* 방송일 때도 아바타 숨김: not isSystem && not isWhisper && not isBroadcast */ %>
@@ -103,7 +104,7 @@
     </form>
 
     <form action="/broadcastchat" id="broadcastchat-form" method="post" class="composer-row">
-      <label class="composer-label">외치기</label>
+      <label class="composer-label" for="broadcastchat-inpu">외치기</label>
       <input type="text" id="broadcastchat-input" name="chat" placeholder="모두에게 외치기">
       <button type="submit" class="btn">전송</button>
     </form>
@@ -112,6 +113,7 @@
     <form action="/whisperchat" id="whisperchat-form" method="post" class="composer-row whisper" style="display:none;">
       <input type="hidden" id="whisper-target-socketid" name="targetSocketId">
       <input type="hidden" id="whisper-source-user" name="sourceSocketUser" value="<%=user.nick%>">
+      <input type="hidden" id="whisper-source-userid" name="sourceSocketUserId" value="<%=user._id%>">
       <input type="hidden" id="whisper-target-user" name="targetSocketUser">
       <span class="whisper-target">대상: <strong id="whisper-target-display"></strong></span>
       <input type="text" id="whisper-chat-input" name="chat" placeholder="귓속말 내용">
@@ -138,22 +140,27 @@
 </script>
 <script>
   const socket = io('/chat', { path: '/socket.io', withCredentials: true });
-  const myUser = '<%= user %>';
   const chatList = document.querySelector('#chat-list');
   const whisperForm = document.querySelector('#whisperchat-form');
   const whisperCancelBtn = document.querySelector('#whisper-cancel-btn');
   const whisperTargetDisplay = document.querySelector('#whisper-target-display');
   const whisperTargetSocketId = document.querySelector('#whisper-target-socketid');
   const whisperChatInput = document.querySelector('#whisper-chat-input');
+  const myUser = {
+    id: '<%= user._id %>',
+    nick: '<%= user.nick %>',
+  };
+
 
   socket.on('connect', () => {
     const roomId = new URL(location).pathname.split('/').at(-1);
     // 사용자 정보 (EJS에서 user 객체를 서버 렌더링 시 주입했다고 가정)
-      const userInfo = {
-        id: '<%= user._id %>',
-        nick: '<%= user.nick %>',
-      };
-    socket.emit('join', {roomId, user:userInfo});
+      // const userInfo = {
+      //   id: '<%= user._id %>',
+      //   nick: '<%= user.nick %>',
+      // };
+      // alert("Joining roomId: " + roomId + " as nick:" + myUser.nick + " userid (" + myUser.id + ")");
+    socket.emit('join', {roomId, user:myUser});
   });
 
   // 시스템 메시지
@@ -182,8 +189,6 @@ socket.on('whisper', data => {
   div.dataset.replySocketId = data.fromSocketId || '';
   div.dataset.replyUser = data.fromUser || '';
   div.dataset.replyfromuserId = data.chat.userId || ''; 
-
-  alert("userId : " + data.chat.userId);
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble whisper-bubble'; // 버블에도 타입 클래스 추가
@@ -360,11 +365,13 @@ socket.on('broadcastchat', data => {
     if (socketSpan) {
       const targetId = socketSpan.dataset.socketId || '';
       const fromUser = socketSpan.textContent?.trim().split(' (')[0] || '';
+      const fromUserId = socketSpan.dataset.fromuserId || '';
+
       if (!targetId) {
-        alert('유효한 소켓 ID가 없습니다.');
+      //  alert('유효한 소켓 ID가 없습니다. :' + fromUserId);
         return;
       }
-    
+      
       const whisperForm = document.querySelector('#whisperchat-form');
       const whisperTargetUser = whisperForm.querySelector('#whisper-target-user');
       whisperTargetUser.value = fromUser || '';  // 예: 귓속말 대상의 닉네임
@@ -563,7 +570,8 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
       const sockSpan = target.closest('.socket-id-display');
       if (sockSpan) {
         const socketId = sockSpan.dataset.socketId || '';
-        const fromUserId = sockSpan.dataset.fromUserId || '';
+        const fromUserId = sockSpan.dataset.fromuserId || '';
+
         // 텍스트: "닉네임 (ABCD...)" 형태일 수 있음
         const raw = (sockSpan.textContent || '').trim();
         const user = raw.split(' (')[0] || '';
@@ -576,7 +584,7 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
         const inner = msg.querySelector('.socket-id-display');
         if (inner) {
           const socketId = inner.dataset.socketId || '';
-          const fromUserId = sockSpan.dataset.fromUserId || '';
+          const fromUserId = sockSpan.dataset.fromuserId || '';
           const raw = (inner.textContent || '').trim();
           const user = raw.split(' (')[0] || '';
           return { socketId, user, fromUserId };
@@ -618,14 +626,25 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
       // 대상 정보 추출
       const info = extractTargetInfo(e.target);
 
-      alert(info.socketId + ":" + info.user + ": " + socket.userId);
+      alert(`Context Info:\nsocketId: ${info.socketId}\nuser: ${info.user}\nfromUserId: ${info.fromUserId}`);
+
+      if(myUser.id === info.fromUserId){
+        hideMenu();
+        return;
+      }
 
       // socketId가 없거나 내 메시지(내 소켓)라면 메뉴 띄우지 않음
-      if (!info.socketId && !info.userId) { hideMenu(); return; }
+      if (!info.socketId && !info.fromUserId) { hideMenu(); return; }
+
       if(info.socketId){
         if (info.socketId === (socket && socket.id)) { hideMenu(); return; }
-      }else if(!info.userId){
+      }else if(!info.fromUserId){
         hideMenu(); return;
+      }
+
+      if(!info.socketId){
+        const whisperBtn = document.querySelector('#msg-context [data-action="whisper"]');
+        if(whisperBtn) whisperBtn.style.display = 'none';
       }
 
       ctx = info; // 저장
@@ -636,12 +655,15 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
     menu.addEventListener('click', async (e) => {
       const btn = e.target.closest('.context-item');
       if (!btn) return;
+      
       const action = btn.dataset.action;
 
       // 안전 가드
-      if (!ctx.socketId) { hideMenu(); return; }
+      //if (!ctx.socketId) { hideMenu(); return; }
 
       if (action === 'whisper') {
+        if (!ctx.socketId) { hideMenu(); return; }
+
         // 기존 로직 재사용
         openWhisperForm(ctx.socketId, ctx.user);
         hideMenu();
@@ -650,14 +672,21 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
 
       if (action === 'friend') {
         try {
-          // ✅ 서버 API에 맞게 URL/페이로드 수정하세요.
-          // socketId만으로 서버에서 대상 유저를 resolve하도록 하거나,
-          // 가능한 경우 userId를 같이 넘기세요.
-          await axios.post('/friend/request', {
-            socketId: ctx.socketId,
-            targetNick: ctx.user || undefined,
+          if (!ctx.fromUserId) { hideMenu(); return; } 
+          
+          const res = await axios.post('/friend/request', {
+            addresseeNick: ctx.user || undefined,
+            addressee: ctx.fromUserId || undefined,
           });
-          alert('친구 요청을 보냈습니다.');
+      
+          if(res.status === 200){
+            alert(`${res.data.message ? '(' + res.data.message + ')' : ''}`);
+          }else if(res.status === 201){
+            alert(`${ctx.user}님 ${res.data.message ? '(' + res.data.message + ')' : ''}`);
+          }
+          else{
+            alert('친구 요청에 실패했습니다: ' + (res.data.message || '알 수 없는 오류'));
+          }
         } catch (err) {
           console.error(err);
           alert('친구 요청 중 오류가 발생했습니다.');

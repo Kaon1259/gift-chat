@@ -1,6 +1,7 @@
 const path = require('path');
 const Room = require(path.join(__dirname, '..', 'schemas', 'room'));
 const Chat = require(path.join(__dirname, '..', 'schemas', 'chat'));
+require('dotenv').config();
 
 
 exports.renderIndex = async(req, res, next) =>{
@@ -94,7 +95,6 @@ exports.enterRoom = async(req, res, next) => {
             nick:  nick,
             color: userColor,
             glimpse: false,
-            // user:,
         });
 
     }catch(err){
@@ -180,7 +180,7 @@ exports.sendChat = async(req, res, next)=>{
             userId: userId,
             color: color,
             from: nick,
-            chatType: 'local',
+            chatType: process.env.LOCAL_CHAT || 'local',
             chat: chatData,
         });
 

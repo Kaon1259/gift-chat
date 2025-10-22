@@ -334,3 +334,56 @@ input:focus, textarea:focus{
 }
 .context-item:hover { background: #f3f4f6; }
 
+/* =========================
+   FRIEND REQUESTS
+========================= */
+/* =========================
+   FRIEND REQUESTS (Sent)
+========================= */
+.friend-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.friend-table thead th {
+  background: var(--color-primary-weak);
+  color: var(--color-primary);
+  font-weight: 800;
+  text-align: center;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.friend-table tbody td {
+  text-align: center;
+  padding: 12px 10px;
+  border-bottom: 1px solid #f1f3f5;
+}
+
+.friend-table tbody tr:nth-child(odd) td { background: #fafbff; }
+.friend-table tbody tr:hover td { background: #eef4ff; }
+
+/* 상태 배지 */
+.badge.status-accepted { background:#e7f7ef; color:#0a7a46; border:1px solid #ccefe0; }
+.badge.status-pending  { background:#fff7e6; color:#8a6d3b; border:1px solid #f6e3a6; }
+.badge.status-blocked  { background:#feebee; color:#b00020; border:1px solid #f7c7cf; }
+.badge.status-etc      { background:#eef2ff; color:#3730a3; border:1px solid #dfe3ff; }
+
+/* 소형 버튼 */
+.btn-sm { height: 28px; line-height: 28px; font-size: 12px; padding: 0 10px; }
+
+/* 페이지 타이틀 */
+.page-title {
+  width:100%;
+  max-width:800px;
+  margin:22px auto 12px;
+  font-size: var(--h1);
+  font-weight: 800;
+  text-align: center;
+}

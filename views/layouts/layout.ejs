@@ -11,7 +11,7 @@
     <div class="topbar">
       <% if (typeof user !== 'undefined' && user) { %>
         <span class="topbar-text">
-          안녕하세요, <strong><%= user.nick || user.email %></strong> 님 😊
+          안녕하세요, <strong><%= user.nick || user.email %> : <%= user._id%></strong> 님 😊
         </span>
       <% } else { %>
         <span class="topbar-text">GIF Chat에 오신 것을 환영합니다 🎉</span>

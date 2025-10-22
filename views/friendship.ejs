@@ -1,201 +1,55 @@
-<section class="rooms-wrap">
-  <div class="rooms-card">
-    <header class="rooms-head">
-      <h2>친구목록</h2>
-      <!-- 필요 시 친구추가 버튼 등 -->
-      <!-- <a href="/friend/invite" class="btn btn-primary">친구 추가</a> -->
-    </header>
+<!-- views/friend-requests-sent.ejs -->
+<h1 class="page-title"><%= title %></h1>
 
-    <div class="table-scroller">
-      <table id="friend-list" class="pretty-table">
-        <colgroup>
-          <col class="col-nick">    <!-- 닉네임 -->
-          <col class="col-email">   <!-- 이메일(선택) -->
-          <col class="col-status">  <!-- 상태 -->
-          <col class="col-action">  <!-- 액션 -->
-        </colgroup>
-
-        <thead>
-          <tr>
-            <th>닉네임</th>
-            <th>이메일</th>
-            <th>상태</th>
-            <th>액션</th>
-          </tr>
-        </thead>
-
-        <tbody>
-        <% if (Array.isArray(friends) && friends.length) { %>
-          <% friends.forEach(function(f) { %>
-            <tr data-id="<%= f.id || f._id %>" data-status="<%= f.status || (f.online ? 'accepted' : 'accepted') %>">
-              <td class="cell-nick" title="<%= f.nick || '' %>">
-                <span class="nick-text"><%= f.nick || '' %></span>
-              </td>
-              <td class="cell-email" title="<%= f.email || '' %>">
-                <span class="email-text"><%= f.email || '' %></span>
-              </td>
-              <td class="cell-status">
-                <% if (f.status === 'requested' && f.isIncoming) { %>
-                  <span class="badge badge-warn">요청 받음</span>
-                <% } else if (f.status === 'requested') { %>
-                  <span class="badge badge-info">요청 보냄</span>
-                <% } else if (f.status === 'blocked') { %>
-                  <span class="badge badge-danger">차단</span>
-                <% } else { %>
-                  <span class="status-dot <%= f.online ? 'is-online' : 'is-offline' %>"></span>
-                  <%= f.online ? '온라인' : '오프라인' %>
-                <% } %>
-              </td>
-              <td class="action-cell">
-                <% if (f.status === 'requested' && f.isIncoming) { %>
-                  <button class="btn btn-primary accept-btn" data-id="<%= f.id || f._id %>">수락</button>
-                  <button class="btn decline-btn" data-id="<%= f.id || f._id %>">거절</button>
-                <% } else if (f.status === 'requested') { %>
-                  <button class="btn cancel-btn" data-id="<%= f.id || f._id %>">요청취소</button>
-                <% } else if (f.status === 'blocked') { %>
-                  <button class="btn unblock-btn" data-id="<%= f.id || f._id %>">차단해제</button>
-                <% } else { %>
-                  <button class="btn dm-btn" data-id="<%= f.id || f._id %>">1:1 채팅</button>
-                  <button class="btn remove-btn" data-id="<%= f.id || f._id %>">친구삭제</button>
-                <% } %>
-              </td>
-            </tr>
-          <% }) %>
-        <% } else { %>
-          <tr>
-            <td colspan="4" class="empty-cell">표시할 친구가 없습니다.</td>
-          </tr>
-        <% } %>
-        </tbody>
-      </table>
-    </div>
-
-    <% if (typeof error !== 'undefined' && error) { %>
-      <div class="error-message" style="margin-top:10px;"><%= error %></div>
+<table class="friend-table">
+  <thead>
+    <tr>
+      <th>닉네임</th>
+      <th>상태</th>
+      <th>신청일</th>
+      <th>처리</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if (items && items.length > 0) { %>
+      <% items.forEach(function(it){ %>
+        <tr>
+          <td class="fw-bold"><%= it.addressee?.nick || '-' %></td>
+          <td>
+            <% if (it.status === 'accepted') { %>
+              <span class="badge status-accepted">수락됨</span>
+            <% } else if (it.status === 'pending') { %>
+              <span class="badge status-pending">대기중</span>
+            <% } else if (it.status === 'blocked') { %>
+              <span class="badge status-blocked">차단됨</span>
+            <% } else { %>
+              <span class="badge status-etc"><%= it.status %></span>
+            <% } %>
+          </td>
+          <td><%= new Date(it.createdAt).toLocaleString() %></td>
+          <td>
+            <% if (it.status === 'requested') { %>
+              <form action="/friend/accept/<%= it._id %>" method="post" style="display:inline;">
+                <button type="submit" class="btn btn-primary btn-sm">수락</button>
+              </form>
+            <% } else if (it.status === 'blocked') { %>
+              <form action="/friend/unblock/<%= it._id %>" method="post" style="display:inline;">
+                <button type="submit" class="btn btn-light btn-sm">차단 해제</button>
+              </form>
+            <% } else if (it.status === 'pending') { %>
+              <form action="/friend/cancel/<%= it._id %>" method="post" style="display:inline;">
+                <button type="submit" class="btn btn-light btn-sm">요청 취소</button>
+              </form>
+            <% } else { %>
+              -
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    <% } else { %>
+      <tr>
+        <td colspan="4" class="text-muted" style="padding:16px 0;">보낸 친구요청이 없습니다.</td>
+      </tr>
     <% } %>
-  </div>
-</section>
-
-<!-- socket.io 네임스페이스가 방 목록(/room)이 아니라면 수정하세요. 친구용을 따로 쓰지 않으면 이 스크립트만으로도 동작합니다. -->
-<script>
-  (function () {
-    // ▼ (선택) 에러 쿼리 알림
-    const msg = new URL(location.href).searchParams.get('error');
-    if (msg) alert(msg);
-
-    const tbody = document.querySelector('#friend-list tbody');
-
-    // 공통 헬퍼
-    function rowById(id) {
-      return tbody.querySelector(`tr[data-id="${id}"]`);
-    }
-    function setStatusRow(tr, opts) {
-      // opts = { status, online, incoming }
-      if (!tr) return;
-      if (opts.status) tr.dataset.status = opts.status;
-
-      const cell = tr.querySelector('.cell-status');
-      if (!cell) return;
-
-      if (opts.status === 'requested' && opts.incoming) {
-        cell.innerHTML = `<span class="badge badge-warn">요청 받음</span>`;
-      } else if (opts.status === 'requested') {
-        cell.innerHTML = `<span class="badge badge-info">요청 보냄</span>`;
-      } else if (opts.status === 'blocked') {
-        cell.innerHTML = `<span class="badge badge-danger">차단</span>`;
-      } else {
-        const isOnline = !!opts.online;
-        cell.innerHTML =
-          '<span class="status-dot ' + (isOnline ? 'is-online' : 'is-offline') + '"></span>' +
-          (isOnline ? '온라인' : '오프라인');
-      }
-    }
-    function setActionsRow(tr, status, id, incoming) {
-      const cell = tr.querySelector('.action-cell');
-      if (!cell) return;
-
-      if (status === 'requested' && incoming) {
-        cell.innerHTML =
-          `<button class="btn btn-primary accept-btn" data-id="${id}">수락</button>
-           <button class="btn decline-btn" data-id="${id}">거절</button>`;
-      } else if (status === 'requested') {
-        cell.innerHTML = `<button class="btn cancel-btn" data-id="${id}">요청취소</button>`;
-      } else if (status === 'blocked') {
-        cell.innerHTML = `<button class="btn unblock-btn" data-id="${id}">차단해제</button>`;
-      } else {
-        cell.innerHTML =
-          `<button class="btn dm-btn" data-id="${id}">1:1 채팅</button>
-           <button class="btn remove-btn" data-id="${id}">친구삭제</button>`;
-      }
-    }
-
-    // 액션 델리게이션
-    tbody.addEventListener('click', async (e) => {
-      const id =
-        e.target.dataset.id ||
-        (e.target.closest('button') && e.target.closest('button').dataset.id);
-      if (!id) return;
-
-      const tr = rowById(id);
-      const is = (cls) => e.target.closest('.' + cls);
-
-      try {
-        if (is('accept-btn')) {
-          // TODO: API 엔드포인트에 맞게 수정
-          // await fetch(`/api/friends/${id}/accept`, { method: 'POST' });
-          setStatusRow(tr, { status: 'accepted', online: false });
-          setActionsRow(tr, 'accepted', id, false);
-        }
-        else if (is('decline-btn')) {
-          // await fetch(`/api/friends/${id}/decline`, { method: 'POST' });
-          tr.remove();
-        }
-        else if (is('cancel-btn')) {
-          // await fetch(`/api/friends/${id}/cancel`, { method: 'POST' });
-          tr.remove();
-        }
-        else if (is('unblock-btn')) {
-          // await fetch(`/api/friends/${id}/unblock`, { method: 'POST' });
-          setStatusRow(tr, { status: 'accepted', online: false });
-          setActionsRow(tr, 'accepted', id, false);
-        }
-        else if (is('remove-btn')) {
-          // await fetch(`/api/friends/${id}`, { method: 'DELETE' });
-          tr.remove();
-        }
-        else if (is('dm-btn')) {
-          location.href = '/dm/' + encodeURIComponent(id);
-        }
-      } catch (err) {
-        alert('처리 중 오류가 발생했습니다.');
-      }
-    });
-
-    // ▼ (선택) 실시간 온라인 표시를 받고 싶다면 socket.io 연결
-    // const socket = io('/friend', { path: '/socket.io' }); // 서버 네임스페이스에 맞추어 변경
-    // socket.on('friends:online', (payload) => {
-    //   const tr = rowById(payload.id);
-    //   if (tr) setStatusRow(tr, { status: tr.dataset.status || 'accepted', online: true });
-    // });
-    // socket.on('friends:offline', (payload) => {
-    //   const tr = rowById(payload.id);
-    //   if (tr) setStatusRow(tr, { status: tr.dataset.status || 'accepted', online: false });
-    // });
-    // socket.on('friends:request', (f) => {
-    //   // 신규 요청 수신 시 테이블 최상단 삽입 예시
-    //   const row = document.createElement('tr');
-    //   row.dataset.id = f.id || f._id;
-    //   row.dataset.status = 'requested';
-    //   row.innerHTML = `
-    //     <td class="cell-nick"><span class="nick-text">${f.nick || ''}</span></td>
-    //     <td class="cell-email"><span class="email-text">${f.email || ''}</span></td>
-    //     <td class="cell-status"><span class="badge badge-warn">요청 받음</span></td>
-    //     <td class="action-cell">
-    //       <button class="btn btn-primary accept-btn" data-id="${f.id || f._id}">수락</button>
-    //       <button class="btn decline-btn" data-id="${f.id || f._id}">거절</button>
-    //     </td>
-    //   `;
-    //   tbody.insertBefore(row, tbody.firstChild);
-    // });
-  })();
-</script>
+  </tbody>
+</table>
