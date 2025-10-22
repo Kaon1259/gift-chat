@@ -626,7 +626,7 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
       // 대상 정보 추출
       const info = extractTargetInfo(e.target);
 
-      alert(`Context Info:\nsocketId: ${info.socketId}\nuser: ${info.user}\nfromUserId: ${info.fromUserId}`);
+//      alert(`Context Info:\nsocketId: ${info.socketId}\nuser: ${info.user}\nfromUserId: ${info.fromUserId}`);
 
       if(myUser.id === info.fromUserId){
         hideMenu();
@@ -674,9 +674,10 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
         try {
           if (!ctx.fromUserId) { hideMenu(); return; } 
           
+         // alert(`친구 요청 보냄:\n닉네임: ${ctx.user}\n유저ID: ${ctx.fromUserId}`);
           const res = await axios.post('/friend/request', {
             addresseeNick: ctx.user || undefined,
-            addressee: ctx.fromUserId || undefined,
+            addresseeId: ctx.fromUserId || undefined,
           });
       
           if(res.status === 200){

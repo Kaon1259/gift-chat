@@ -20,7 +20,6 @@ exports.renderFriendShip = async(req, res, next) =>{
         
         if (!friends.length) {
             console.log('renderFriendShip: no relations');
-            return next();  
         }
 
         res.render('friendship', {items: friends, title: '내가 신청한 친구목록', activeMenu: 'friends' });
@@ -37,13 +36,14 @@ exports.renderFriendShipRequest = async(req, res, next) =>{
     const requester =  req.user._id;
     const addressee = addresseeId;
 
+    console.log(`renderFriendShipRequest called : requester = ${requester} /  ${addresseeNick} address = ${addressee} / ${addresseeId}`);
     try{
         
         if(requester === addressee){
             return res.status(400).json({ message: '자기 자신에게는 친구 요청을 할 수 없습니다.' });
         }
 
-        console.log(`renderFriendShipRequest : requester = ${requester} /  address = ${addressee} `);
+        console.log(`renderFriendShipRequest : requester = ${requester} /  addressee = ${addressee} `);
 
         const exFriendship = await Friendship.findOne({
             $or: [
@@ -53,7 +53,7 @@ exports.renderFriendShipRequest = async(req, res, next) =>{
         }); 
 
         if(exFriendship){
-            console.log(`[ ${exFriendship.status} ] renderFriendShipRequest : requester = ${requester} /  ${targetNick} address = ${addressee} / ${addresseeNick}`);
+            console.log(`already registered renderFriendShipRequest : requester = ${requester} /  ${addresseeNick} address = ${addressee} / ${addresseeNick}`);
             if(exFriendship.status === 'declined' || exFriendship.status === 'blocked'){
                 exFriendship.status = 'requested';
                 exFriendship.actionBy = requester;
@@ -61,7 +61,7 @@ exports.renderFriendShipRequest = async(req, res, next) =>{
             }
             return res.status(200).json({ message: '이미 존재하는 친구 관계 또는 요청이 있습니다.' });
         }else{
-            console.log(`not registered renderFriendShipRequest : requester = ${requester} /  ${targetNick} address = ${addressee} / ${addresseeNick}`);
+            console.log(`new renderFriendShipRequest : requester = ${requester} /  ${addresseeNick} address = ${addressee} / ${addresseeNick}`);  
             const newFriendship = new Friendship({
                 requester: requester,   
                 addressee: addressee,
