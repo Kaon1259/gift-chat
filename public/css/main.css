@@ -387,3 +387,21 @@ input:focus, textarea:focus{
   font-weight: 800;
   text-align: center;
 }
+
+  .icon-status-inline {
+    margin-left: 6px;
+    vertical-align: middle;
+    opacity: 0.85;
+    transition: transform .15s ease, opacity .15s ease;
+  }
+  .icon-status-inline:hover {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  .icon-sent   { color: #0d6efd; }  /* 파랑: 보냄 */
+  .icon-recv   { color: #198754; }  /* 초록: 받음 */
+  .icon-acc    { color: #198754; }  /* 초록: 수락됨 */
+  .icon-req    { color: #0d6efd; }  /* 파랑: 요청됨 */
+  .icon-blk    { color: #dc3545; }  /* 빨강: 차단됨 */
+  .icon-pend   { color: #6c757d; }  /* 회색: 대기중 */
+

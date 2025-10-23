@@ -1,6 +1,6 @@
 const path = require('path');
 const router = require('express').Router({ mergeParams: true });
-const { renderFriendShip, renderFriendShipRequest, accept, cancel, unblock } = require(path.join(__dirname, '..', 'controllers', 'friend'));
+const { renderFriendShip, renderFriendShipRequest, accept, cancel, unblock, block, reject } = require(path.join(__dirname, '..', 'controllers', 'friend'));
 const { isLoggedIn } = require(path.join(__dirname, '..', 'middlewares'));
 
 
@@ -18,6 +18,12 @@ router.route('/cancel/:id')
 
 router.route('/unblock/:id')
     .post(isLoggedIn, unblock)
+
+router.route('/block/:id')
+    .post(isLoggedIn, block)
+
+router.route('/reject/:id')
+    .post(isLoggedIn, reject)
 
 module.exports = router;
 

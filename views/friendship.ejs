@@ -1,5 +1,7 @@
 <!-- views/friend-requests-sent.ejs -->
 <h1 class="page-title"><%= title %></h1>
+<!-- layout.ejs 등 공통 레이아웃의 <head>에 추가 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <table class="friend-table">
   <thead>
@@ -14,32 +16,65 @@
     <% if (items && items.length > 0) { %>
       <% items.forEach(function(it){ %>
         <tr>
-          <td class="fw-bold"><%= it.addressee?.nick || '-' %></td>
+          <td class="fw-bold">
+            <% if (String(user._id) === String(it.requester?._id)) { %>
+              <!-- 내가 요청을 보낸 경우 -->
+              <%= it.addressee?.nick || '-' %>
+              <i class="fa-solid fa-paper-plane icon-status-inline icon-sent" title="보냄"></i>
+            <% } else if (String(user._id) === String(it.addressee?._id)) { %>
+              <!-- 내가 요청을 받은 경우 -->
+              <%= it.requester?.nick || '-' %>
+              <i class="fa-solid fa-inbox icon-status-inline icon-recv" title="받음"></i>
+            <% } else { %>
+              <%= it.addressee?.nick || it.requester?.nick || '-' %>
+            <% } %>
+          </td>
           <td>
             <% if (it.status === 'accepted') { %>
               <span class="badge status-accepted">수락됨</span>
-            <% } else if (it.status === 'pending') { %>
-              <span class="badge status-pending">대기중</span>
+            <% } else if (it.status === 'requested') { %>
+              <span class="badge status-requested">요청됨</span>
             <% } else if (it.status === 'blocked') { %>
               <span class="badge status-blocked">차단됨</span>
+            <% } else if (it.status === 'pending') { %>
+              <span class="badge status-pending">대기중</span>
             <% } else { %>
               <span class="badge status-etc"><%= it.status %></span>
             <% } %>
           </td>
           <td><%= new Date(it.createdAt).toLocaleString() %></td>
           <td>
-            <% if (it.status === 'requested') { %>
-              <form action="/friend/accept/<%= it._id %>" method="post" style="display:inline;">
-                <button type="submit" class="btn btn-primary btn-sm">수락</button>
-              </form>
-            <% } else if (it.status === 'blocked') { %>
-              <form action="/friend/unblock/<%= it._id %>" method="post" style="display:inline;">
-                <button type="submit" class="btn btn-light btn-sm">차단 해제</button>
-              </form>
-            <% } else if (it.status === 'pending') { %>
-              <form action="/friend/cancel/<%= it._id %>" method="post" style="display:inline;">
-                <button type="submit" class="btn btn-light btn-sm">요청 취소</button>
-              </form>
+            <% if (String(user._id) === String(it.addressee?._id)) { %>
+              <!-- 내가 받은 요청 -->
+              <% if (it.status === 'requested') { %>
+                <form action="/friend/accept/<%= it._id %>" method="post" style="display:inline;">
+                  <button type="submit" class="btn btn-primary btn-sm">수락</button>
+                </form>
+                <form action="/friend/reject/<%= it._id %>" method="post" style="display:inline;">
+                  <button type="submit" class="btn btn-light btn-sm">거절</button>
+                </form>
+              <% } else if (it.status === 'accepted') { %>
+                <form action="/friend/block/<%= it._id %>" method="post" style="display:inline;">
+                  <button type="submit" class="btn btn-warning btn-sm">차단</button>
+                </form>
+              <% } else if (it.status === 'blocked') { %>
+                <form action="/friend/unblock/<%= it._id %>" method="post" style="display:inline;">
+                  <button type="submit" class="btn btn-secondary btn-sm">차단 해제</button>
+                </form>
+              <% } else { %>
+                -
+              <% } %>
+
+            <% } else if (String(user._id) === String(it.requester?._id)) { %>
+              <!-- 내가 보낸 요청 -->
+              <% if (it.status === 'requested') { %>
+                <form action="/friend/cancel/<%= it._id %>" method="post" style="display:inline;">
+                  <button type="submit" class="btn btn-light btn-sm">요청 취소</button>
+                </form>
+              <% } else { %>
+                <%= it.status %>
+              <% } %>
+
             <% } else { %>
               -
             <% } %>
@@ -48,7 +83,7 @@
       <% }) %>
     <% } else { %>
       <tr>
-        <td colspan="4" class="text-muted" style="padding:16px 0;">보낸 친구요청이 없습니다.</td>
+        <td colspan="4" class="text-muted" style="padding:16px 0;">친구 요청 내역이 없습니다.</td>
       </tr>
     <% } %>
   </tbody>

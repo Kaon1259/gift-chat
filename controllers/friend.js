@@ -10,14 +10,17 @@ exports.renderFriendShip = async(req, res, next) =>{
 
     try{ 
         const friends = await Friendship.find({
-                    requester: me,
+          $or: [
+            { requester: me },
+            { addressee: me }
+          ]
         })
-        .populate('addressee', '_id nick email') // 상대 정보
+        .populate('requester', '_id nick email') // 내 정보
+        .populate('addressee', '_id nick email') // 상대방 정보
         .select('_id requester addressee status createdAt')
         .sort({ createdAt: -1 })
         .lean();
 
-        
         if (!friends.length) {
             console.log('renderFriendShip: no relations');
         }
@@ -46,10 +49,9 @@ exports.renderFriendShipRequest = async(req, res, next) =>{
         console.log(`renderFriendShipRequest : requester = ${requester} /  addressee = ${addressee} `);
 
         const exFriendship = await Friendship.findOne({
-            $or: [
-                { requester: requester, addressee: addressee },
-                { requester: addressee, addressee: requester }
-            ]
+              requester: requester, 
+              addressee: addressee,
+              status: { $nin: ['canceled', 'rejected'] }    //취소가 거절인 경우에는 다시 요청 가능하게 
         }); 
 
         if(exFriendship){
@@ -79,7 +81,24 @@ exports.renderFriendShipRequest = async(req, res, next) =>{
 
 exports.accept = async (req, res, next) => {
   try {
-    await Friendship.findByIdAndUpdate(req.params.id, { status: 'accepted' });
+    console.log(`accept:friendship: ${req.params.id} : addressee : ${req.user._id}`);
+    const addresseeId = req.user._id;
+    const friendshipId = req.params.id;
+  
+    const friendship = await Friendship.findOneAndUpdate(
+      {
+        _id: friendshipId,       // 특정 요청 ID
+        addressee: addresseeId,    // 현재 로그인한 나
+        status: 'requested'         // 아직 수락되지 않은 요청
+      },
+      { status: 'accepted' },       // 수락으로 변경
+      { new: true }
+    );
+    
+    if (!friendship) {
+      return res.status(200).json({ message: '수락할 친구 요청이 없습니다.' });
+    }
+
     res.redirect('/friend');
   } catch (err) {
     console.error(err);
@@ -89,9 +108,25 @@ exports.accept = async (req, res, next) => {
 
 // ✅ 친구요청 취소
 exports.cancel = async (req, res, next) => {
+  const friendshipId = req.params.id;
+  const requesterId = req.user._id;
+
   try {
-    await Friendship.findByIdAndDelete(req.params.id);
-    res.redirect('/friend/requests/sent');
+      const friendship = await Friendship.findOneAndUpdate(
+        {
+          _id: friendshipId,       // 특정 요청 ID
+          requester: requesterId,    // 현재 로그인한 나
+          status: 'requested'         // 아직 수락되지 않은 요청
+        },
+        { status: 'canceled' },       // 요청 취소로 변경
+        { new: true }
+      );
+
+      if (!friendship) {
+        return res.status(200).json({ message: '취소할 친구 요청이 없습니다.' });
+      }
+
+      res.redirect('/friend');
   } catch (err) {
     console.error(err);
     res.status(500).send('요청 취소 중 오류');
@@ -100,9 +135,82 @@ exports.cancel = async (req, res, next) => {
 
 // ✅ 차단 해제
 exports.unblock  = async (req, res, next) => {
+  const friendshipId = req.params.id;
+  const addresseeId = req.user._id;
+
   try {
-    await Friendship.findByIdAndUpdate(req.params.id, { status: 'accepted' });
-    res.redirect('/friend/requests/sent');
+      const friendship = await Friendship.findOneAndUpdate(
+        {
+          _id: friendshipId,       // 특정 요청 ID
+          addressee: addresseeId,    // 현재 로그인한 나
+          status: 'blocked'         // 아직 수락되지 않은 요청
+        },
+        { status: 'accepted' },       // 블록으로 변경
+        { new: true }
+      );
+
+      if (!friendship) {
+        return res.status(200).json({ message: '차단 해제할 친구 요청이 없습니다.' });
+      }
+
+      res.redirect('/friend');
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('차단 해제 중 오류');
+  }
+};
+
+// ✅ 차단
+exports.block  = async (req, res, next) => {
+  const friendshipId = req.params.id;
+  const addresseeId = req.user._id;
+
+  try {
+    const friendship = await Friendship.findOneAndUpdate(
+      {
+        _id: friendshipId,       // 특정 요청 ID
+        addressee: addresseeId,    // 현재 로그인한 나
+        status: 'accepted'         // 아직 수락되지 않은 요청
+      },
+      { status: 'blocked' },       // 블록으로 변경
+      { new: true }
+    );
+
+    if (!friendship) {
+      return res.status(200).json({ message: '차단할 친구 요청이 없습니다.' });
+    }
+
+    res.redirect('/friend');
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('차단 해제 중 오류');
+  }
+};
+
+// ✅ 차단
+exports.reject  = async (req, res, next) => {
+  const friendshipId = req.params.id;
+  const addresseeId = req.user._id;
+
+  try {
+    const friendship = await Friendship.findOneAndUpdate(
+      {
+        _id: friendshipId,       // 특정 요청 ID
+        addressee: addresseeId,    // 현재 로그인한 나
+        status: 'requested'         // 아직 수락되지 않은 요청
+      },
+      { status: 'rejected' },       // 거절 변경
+      { new: true }
+    );
+
+    if (!friendship) {
+      return res.status(200).json({ message: '거절할 친구 요청이 없습니다.' });
+    }
+
+    res.redirect('/friend');
+
   } catch (err) {
     console.error(err);
     res.status(500).send('차단 해제 중 오류');

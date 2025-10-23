@@ -10,7 +10,7 @@ const FriendshipSchema = new Schema({
     // 관계 상태
     status: {
         type: String,
-        enum: ['requested', 'accepted', 'declined', 'blocked'],
+        enum: ['requested', 'accepted', 'declined', 'blocked', 'unblocked', 'canceled', 'rejected'],
         default: 'requested',
         index: true,
     },
