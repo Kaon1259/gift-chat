@@ -272,208 +272,55 @@ socket.on('whisper', data => {
   div.scrollIntoView({ block: 'end' });
 });
 
-
-async function checkIsFriend(requester, addressee){/** 1) 수락된 친구 목록 API */
-  const { data } = await axios.post('/friend/isfriend',{requester:requester, addressee:addressee});
-  return data.isFriend;
-};
-
-
   // 일반/실시간 채팅
-socket.on('chat', function (data) {
-  // 서버에서 오는 형태에 따라 방어적으로 꺼내기
-  const doc = data.chat || data;
+  socket.on('chat', function (data) {
+    const doc = data.chat || data;
+    const isMine = data.socketId && socket.id === data.socketId;
 
-  // 표시에 필요한 정보 추출
-  const fromUser   = doc.user || data.user || 'Guest';
-  const fromUserId = doc.userId || (data.chat && data.chat.userId) || data.fromUserId || '';
-  const isMine     = data.socketId && socket.id === data.socketId;
-  const isFriend   = doc.isFriend ? doc.isFriend : false;
-  const friendStatus  = String(isFriend ?? 'accepted' ?? '');
+    //alert(doc);
 
-  const item = document.createElement('div');
-  item.className = 'message ' + (isMine ? 'mine' : 'other');
+    const item = document.createElement('div');
+    item.className = 'message ' + (isMine ? 'mine' : 'other');
 
-  // 아바타 (내 메시지는 숨김 유지)
-  if (!isMine) {
-    const avatar = document.createElement('div');
-    avatar.className = 'avatar';
-    avatar.style.setProperty('--avatar-color', doc.color || '#888'); // CSS 변수 사용 시
-    avatar.style.backgroundColor = doc.color || '#888';              // 배경 직접 지정도 유지
-    avatar.textContent = String(fromUser || 'U').charAt(0).toUpperCase();
-
-    // ✅ 친구 아이콘 오버레이
-    if (isFriend) {
-      const friendImg = document.createElement('img');
-      friendImg.src = '/images/free-icon-friend.png';
-      friendImg.alt = 'friend';
-      friendImg.className = 'friend-icon';
-      friendImg.dataset.fromuserId   = fromUserId;
-      friendImg.dataset.user         = fromUser;
-      friendImg.isFriend             = isFriend;
-      friendImg.dataset.friendStatus = friendStatus;
-      avatar.appendChild(friendImg);
+    if (!isMine) {
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.style.backgroundColor = (doc.color || '#888');
+      avatar.textContent = String(doc.user || 'U').charAt(0).toUpperCase();
+      item.appendChild(avatar);
     }
 
-    item.appendChild(avatar);
-  }
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
 
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const name = document.createElement('span');
+    name.className = 'name socket-id-display';
+    name.dataset.socketId = data.socketId || '';
+    name.textContent = `${doc.user || 'Guest'} ${data.socketId ? '(' + data.socketId.substring(0,4) + '...)' : ''}`;
+    name.dataset.fromuserId = data.chat.userId || ''; 
+    name.dataset.isfriend = data.isFriend || false;
+    meta.appendChild(name);
+    bubble.appendChild(meta);
 
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-
-  // 이름(소켓ID)
-  const name = document.createElement('span');
-  name.className = 'name socket-id-display';
-  name.dataset.socketId   = data.socketId || '';
-  name.dataset.fromuserId = fromUserId || '';
-  name.dataset.isfriend   = String(isFriend);
-  name.textContent = `${fromUser} ${data.socketId ? '(' + String(data.socketId).substring(0,4) + '...)' : ''}`;
-  meta.appendChild(name);
-
-  // ✅ 친구 배지 추가
-  if (isFriend) {
-    const badge = document.createElement('span');
-    badge.className = 'badge badge-friend';
-    badge.title = friendStatus; // 예: accepted/requested 등
-    badge.dataset.fromuserId   = fromUserId || '';
-    badge.dataset.user         = fromUser;
-    badge.dataset.isfriend     = 'true';
-    badge.dataset.friendStatus = friendStatus;
-    badge.textContent = '친구';
-    meta.appendChild(badge);
-  }
-
-  // 타입 배지(기존 로직 유지)
-  const typeBadge = document.createElement('span');
-  typeBadge.className = 'badge type-local';
-  typeBadge.textContent = '일반';
-  meta.appendChild(typeBadge);
-
-  bubble.appendChild(meta);
-
-  // 본문
-  if (doc.gif) {
-    const img = document.createElement('img');
-    img.className = 'bubble-gif';
-    img.src = '/images/free-icon-friend.png'; //+ doc.gif;
-    img.alt = 'gif';
-    bubble.appendChild(img);
-  } else if (doc.chat) {
-    const text = document.createElement('div');
-    text.className = 'text';
-    text.textContent = doc.chat;
-    bubble.appendChild(text);
-  }
-
-  item.appendChild(bubble);
-  chatList.appendChild(item);
-  chatList.scrollTop = chatList.scrollHeight;
-});
-
-function displayChat(
-        doc,
-        fromUser,
-        fromUserId,
-        isMine,
-        isFriend,
-        friendStatus){
-    // 서버에서 오는 형태에 따라 방어적으로 꺼내기
-//   const doc = data.chat || data;
-
-//   // 표시에 필요한 정보 추출
-//   const fromUser   = doc.user || data.user || 'Guest';
-//   const fromUserId = doc.userId || (data.chat && data.chat.userId) || data.fromUserId || '';
-//   const isMine     = data.socketId && socket.id === data.socketId;
-
-//   // 친구 여부/상태 (서버에서 내려보내 주세요: data.isFriend, data.friendStatus)
-//   const friendStatus  = String(isFriend ?? 'accepted' ?? '');
-
-  alert(`friendStatus :${friendStatus}`);
-
-  const item = document.createElement('div');
-  item.className = 'message ' + (isMine ? 'mine' : 'other');
-
-  // 아바타 (내 메시지는 숨김 유지)
-  if (!isMine) {
-    const avatar = document.createElement('div');
-    avatar.className = 'avatar';
-    avatar.style.setProperty('--avatar-color', doc.color || '#888'); // CSS 변수 사용 시
-    avatar.style.backgroundColor = doc.color || '#888';              // 배경 직접 지정도 유지
-    avatar.textContent = String(fromUser || 'U').charAt(0).toUpperCase();
-
-    // ✅ 친구 아이콘 오버레이
-    if (isFriend) {
-      const friendImg = document.createElement('img');
-      friendImg.src = '/images/free-icon-friend.png';
-      friendImg.alt = 'friend';
-      friendImg.className = 'friend-icon';
-      friendImg.dataset.fromuserId   = fromUserId;
-      friendImg.dataset.user         = fromUser;
-      friendImg.isFriend             = isFriend;
-      friendImg.dataset.friendStatus = friendStatus;
-      avatar.appendChild(friendImg);
+    if (doc.gif) {
+      const img = document.createElement('img');
+      img.className = 'bubble-gif';
+      img.src = '/gif/' + doc.gif;
+      bubble.appendChild(img);
+    } else if (doc.chat) {
+      const text = document.createElement('div');
+      text.className = 'text';
+      text.textContent = doc.chat;
+      bubble.appendChild(text);
     }
 
-    item.appendChild(avatar);
-  }
+    item.appendChild(bubble);
+    chatList.appendChild(item);
+    chatList.scrollTop = chatList.scrollHeight;
+  });
 
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-
-  // 이름(소켓ID)
-  const name = document.createElement('span');
-  name.className = 'name socket-id-display';
-  name.dataset.socketId   = data.socketId || '';
-  name.dataset.fromuserId = fromUserId || '';
-  name.dataset.isfriend   = String(isFriend);
-  name.textContent = `${fromUser} ${data.socketId ? '(' + String(data.socketId).substring(0,4) + '...)' : ''}`;
-  meta.appendChild(name);
-
-  // ✅ 친구 배지 추가
-  if (isFriend) {
-    const badge = document.createElement('span');
-    badge.className = 'badge badge-friend';
-    badge.title = friendStatus; // 예: accepted/requested 등
-    badge.dataset.fromuserId   = fromUserId || '';
-    badge.dataset.user         = fromUser;
-    badge.dataset.isfriend     = 'true';
-    badge.dataset.friendStatus = friendStatus;
-    badge.textContent = '친구';
-    meta.appendChild(badge);
-  }
-
-  // 타입 배지(기존 로직 유지)
-  const typeBadge = document.createElement('span');
-  typeBadge.className = 'badge type-local';
-  typeBadge.textContent = '일반';
-  meta.appendChild(typeBadge);
-
-  bubble.appendChild(meta);
-
-  // 본문
-  if (doc.gif) {
-    const img = document.createElement('img');
-    img.className = 'bubble-gif';
-    img.src = '/images/free-icon-friend.png'; //+ doc.gif;
-    img.alt = 'gif';
-    bubble.appendChild(img);
-  } else if (doc.chat) {
-    const text = document.createElement('div');
-    text.className = 'text';
-    text.textContent = doc.chat;
-    bubble.appendChild(text);
-  }
-
-  item.appendChild(bubble);
-  chatList.appendChild(item);
-  chatList.scrollTop = chatList.scrollHeight;
-}
 
   // 방송 채팅
 socket.on('broadcastchat', data => {

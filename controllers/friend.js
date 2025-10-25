@@ -61,6 +61,7 @@ exports.renderFriendShipRequest = async(req, res, next) =>{
                 exFriendship.actionBy = requester;
                 await exFriendship.save();
             }
+
             return res.status(200).json({ message: '이미 존재하는 친구 관계 또는 요청이 있습니다.' });
         }else{
             console.log(`new renderFriendShipRequest : requester = ${requester} /  ${addresseeNick} address = ${addressee} / ${addresseeNick}`);  
@@ -216,3 +217,64 @@ exports.reject  = async (req, res, next) => {
     res.status(500).send('차단 해제 중 오류');
   }
 };
+
+exports.accepted = async(req, res, next) =>{
+    const meId = req.user._id;
+
+    console.log(`accepted : ${meId}`);
+
+    try{ 
+        const rows = await Friendship.find({
+          status: 'accepted',
+          $or: [{ requester: meId }, { addressee: meId }],
+        })
+          .populate('requester', '_id nick email')
+          .populate('addressee', '_id nick email')
+          .select('_id requester addressee status createdAt')
+          .sort({ createdAt: -1 })
+          .lean();
+
+        // 내가 아닌 상대만 뽑아서 일관된 friend 리스트로 변환
+        const friends = rows.map(r => {
+          const isRequesterMe = String(r.requester._id) === String(meId);
+          const friendUser = isRequesterMe ? r.addressee : r.requester;
+          return {
+            friendshipId: r._id,
+            since: r.createdAt,
+            _id: friendUser._id,
+            nick: friendUser.nick,
+            email: friendUser.email,
+          };
+        });
+
+        friends.forEach(friend => {
+            console.log(`accepted friend foreach: ${friend._id} / ${friend.nick} / ${friend.email}`);
+        });
+
+        res.status(200).json(friends);
+
+    }catch(err){
+        console.log(err);
+        next(err);  
+    }
+}
+
+exports.isFriend = async(req, res, next) => {
+
+    const {requester, addressee} = req.body;
+    console.log(`isFriend called: ${requester} : ${addressee}`);
+
+    try{
+    const friendship = await Friendship.findOne({
+        $or: [
+            { requester: requester, addressee: addressee, status: 'accepted' },
+            { requester: addressee, addressee: requester, status: 'accepted' }
+        ]
+    });
+    const isFriend = !!friendship;
+
+    return res.status(200).json({isFriend});
+  }catch(err){
+    return res.status(500).json({isFriend:false, message:'서버오류'})
+  }
+}

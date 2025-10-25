@@ -1,6 +1,8 @@
 const path = require('path');
+const { col } = require('sequelize');
 const Room = require(path.join(__dirname, '..', 'schemas', 'room'));
 const Chat = require(path.join(__dirname, '..', 'schemas', 'chat'));
+const Friendship = require(path.join(__dirname, '..', 'schemas', 'friendShip'));
 require('dotenv').config();
 
 
@@ -60,9 +62,13 @@ exports.createRoom = async(req, res, next)=>{
 
 exports.enterRoom = async(req, res, next) => {
     try{
-        const id = req.params.id;
+        const id = req.params.id; //room id
         const password = req.query.password;
         console.log(`enterRoom ; ${id}, ${password}`);
+        
+        const userColor =  req.session.color; 
+        const nick = req.user.nick;
+        const meId = req.user._id;
 
         const room = await Room.findOne({_id: id});
 
@@ -81,20 +87,80 @@ exports.enterRoom = async(req, res, next) => {
         }
 
         //get chatting messages...
-        const chats = await Chat.find({ room: room._id }).sort('createdAt');
+        const chats = await Chat.find({ room: room._id })
+                        .sort('createdAt')
+                        .lean();
         
-        const userColor =  req.session.color; 
-        const nick = req.user.nick;
-        
+        const addresseeIdSet = new Set();
+        const requesterIdSet = new Set();
+        chats.forEach(chat => {
+            if(chat.userId){
+                if(!addresseeIdSet.has(chat.userId.toString()) && chat.userId.toString() !== meId.toString()){
+                    addresseeIdSet.add(chat.userId.toString());
+                }
+
+                if(!requesterIdSet.has(chat.userId.toString()) && chat.userId.toString() !== meId.toString()){
+                    requesterIdSet.add(chat.userId.toString());
+                }
+            }
+        });
+        const addresseeIds = Array.from(addresseeIdSet);
+        const requesterIds = Array.from(requesterIdSet);
+
+        let friendBy = new Map(); 
+        if(addresseeIds.length > 0){
+            console.log(`addresseeIds: ${addresseeIds.join(', ')}`);
+            console.log(`requesterIds: ${requesterIds.join(', ')}`);
+
+            const friendships = await Friendship.find({
+            $or: [
+                // ① 내가 수신자(addressee)인 경우
+                { addressee: meId, requester: { $in: requesterIds } },
+
+                // ② 내가 발신자(requester)인 경우
+                { requester: meId, addressee: { $in: addresseeIds } },
+            ],
+            }).select('requester addressee status');
+
+            console.log(`Friendships found: ${friendships.length}`);
+
+            friendships.forEach(friendship => {
+                console.log(`friendship found: requester=${friendship.requester} addressee=${friendship.addressee}, status=${friendship.status}`);
+                
+                if (friendship.requester.toString() === meId.toString()) {
+                    friendBy.set(friendship.addressee.toString(), friendship.status);
+                }else if (friendship.addressee.toString() === meId.toString()) {
+                    friendBy.set(friendship.requester.toString(), friendship.status);
+                }
+            });
+        }
+
+        console.log(`friendBy map size: ${friendBy.size} ${Array.from(friendBy.entries()).map(([k,v])=>`${k}:${v}`).join(', ')}`);
+
+        const chatsWithFriendFlag = chats.map(c => {
+            console.log(`Processing chat from userId: ${c.userId}`);
+            const addresseeStr = c.userId ? String(c.userId) : null;
+            const status = addresseeStr != meId ? (addresseeStr ? friendBy.get(addresseeStr) : undefined) : null;
+
+            console.log(`chat ${c.user} userId: ${addresseeStr}, friendship status: ${status}: ${status === 'accepted'}`);
+
+            return {
+                    ...c,
+                    isFriend: status === 'accepted',   // 요구사항: accepted이면 친구 플래그 true
+                    friendStatus: status || null,      // 상태값 넘김(없으면 null)
+                    };
+        });
+
         return res.render('chat', {
             room,
             title: room.title,
             max: room.max,
             createdAt: new Date(room.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-            chats,
+            chats: chatsWithFriendFlag,
             nick:  nick,
             color: userColor,
             glimpse: false,
+            gif:'chat.png',
         });
 
     }catch(err){
@@ -171,8 +237,6 @@ exports.sendChat = async(req, res, next)=>{
         const userId = req.user._id;
         const color = req.session.color;
         const chatData = req.body.chat;
-
-        console.log(`sendChat; ${nick} : ${userId}`);
 
         const chat = await Chat.create({
             room: roomId,
@@ -297,6 +361,18 @@ exports.whisperChat = async(req, res, next)=>{
         console.log(err);
         next(err);
     }
+}
+
+exports.isFriend = async(requester, addressee) => {
+
+    const friendship = await Friendship.findOne({
+        $or: [
+            { requester: requester, addressee: addressee, status: 'accepted' },
+            { requester: addressee, addressee: requester, status: 'accepted' }
+        ]
+    });
+
+    return !!friendship;
 }
 
 const generateRandomColor = () => {
