@@ -91,49 +91,8 @@ exports.enterRoom = async(req, res, next) => {
                         .sort('createdAt')
                         .lean();
         
-        const addresseeIdSet = new Set();
-        const requesterIdSet = new Set();
-        chats.forEach(chat => {
-            if(chat.userId){
-                if(!addresseeIdSet.has(chat.userId.toString()) && chat.userId.toString() !== meId.toString()){
-                    addresseeIdSet.add(chat.userId.toString());
-                }
-
-                if(!requesterIdSet.has(chat.userId.toString()) && chat.userId.toString() !== meId.toString()){
-                    requesterIdSet.add(chat.userId.toString());
-                }
-            }
-        });
-        const addresseeIds = Array.from(addresseeIdSet);
-        const requesterIds = Array.from(requesterIdSet);
-
-        let friendBy = new Map(); 
-        if(addresseeIds.length > 0){
-            console.log(`addresseeIds: ${addresseeIds.join(', ')}`);
-            console.log(`requesterIds: ${requesterIds.join(', ')}`);
-
-            const friendships = await Friendship.find({
-            $or: [
-                // ① 내가 수신자(addressee)인 경우
-                { addressee: meId, requester: { $in: requesterIds } },
-
-                // ② 내가 발신자(requester)인 경우
-                { requester: meId, addressee: { $in: addresseeIds } },
-            ],
-            }).select('requester addressee status');
-
-            console.log(`Friendships found: ${friendships.length}`);
-
-            friendships.forEach(friendship => {
-                console.log(`friendship found: requester=${friendship.requester} addressee=${friendship.addressee}, status=${friendship.status}`);
-                
-                if (friendship.requester.toString() === meId.toString()) {
-                    friendBy.set(friendship.addressee.toString(), friendship.status);
-                }else if (friendship.addressee.toString() === meId.toString()) {
-                    friendBy.set(friendship.requester.toString(), friendship.status);
-                }
-            });
-        }
+        let friendBy = new Map();
+        friendBy = await getFriends(chats, meId);
 
         console.log(`friendBy map size: ${friendBy.size} ${Array.from(friendBy.entries()).map(([k,v])=>`${k}:${v}`).join(', ')}`);
 
@@ -248,8 +207,12 @@ exports.sendChat = async(req, res, next)=>{
             chat: chatData,
         });
 
+        let friendBy = new Map();
+        friendBy = await getFriendsByAccepted(roomId, userId);
+        const friendsObj = Object.fromEntries(friendBy);
+
         console.log(`sendChat: ${req.params.id} : ${req.body.chat}, color:${chat.color} socketId:${req.session.socketId}`);
-        req.app.get('io').of('/chat').to(req.params.id).emit('chat', {chat, socketId: req.session.socketId || null,});
+        req.app.get('io').of('/chat').to(req.params.id).emit('chat', {chat, friends:friendsObj, socketId: req.session.socketId || null,});
         res.send('ok');
     }catch(err){
         console.log(err);
@@ -275,7 +238,11 @@ exports.broadcastChat = async(req, res, next)=>{
             chat: chatData,
         });
 
-        req.app.get('io').of('/chat').emit('broadcastchat', chat);
+        let friendBy = new Map();
+        friendBy = await getFriendsByAccepted(roomId, userId);
+        const friendsObj = Object.fromEntries(friendBy);
+
+        req.app.get('io').of('/chat').emit('broadcastchat', { chat, friends:friendsObj });
         res.send('ok');
     }catch(err){
         console.log(err);
@@ -363,19 +330,7 @@ exports.whisperChat = async(req, res, next)=>{
     }
 }
 
-exports.isFriend = async(requester, addressee) => {
-
-    const friendship = await Friendship.findOne({
-        $or: [
-            { requester: requester, addressee: addressee, status: 'accepted' },
-            { requester: addressee, addressee: requester, status: 'accepted' }
-        ]
-    });
-
-    return !!friendship;
-}
-
-const generateRandomColor = () => {
+const generateRandomColor = async() => {
     // 0부터 16777215 (FFFFFF의 10진수 값) 사이의 정수를 생성
     const randomHex = Math.floor(Math.random() * 16777215).toString(16);
     
@@ -385,3 +340,122 @@ const generateRandomColor = () => {
     // 앞에 #을 붙여 반환
     return `#${paddedHex}`;
 };
+
+
+async function getFriends(chats, meId) {
+    //get chatting messages...     
+    const addresseeIdSet = new Set();
+    const requesterIdSet = new Set();
+    
+    chats.forEach(chat => {
+    if(chat.userId){
+        if(!addresseeIdSet.has(chat.userId.toString()) && chat.userId.toString() !== meId.toString()){
+            addresseeIdSet.add(chat.userId.toString());
+        }
+
+        if(!requesterIdSet.has(chat.userId.toString()) && chat.userId.toString() !== meId.toString()){
+            requesterIdSet.add(chat.userId.toString());
+            }
+        }
+    });
+
+    const addresseeIds = Array.from(addresseeIdSet);
+    const requesterIds = Array.from(requesterIdSet);
+
+    let friendBy = new Map(); 
+    if(addresseeIds.length > 0){
+        console.log(`addresseeIds: ${addresseeIds.join(', ')}`);
+        console.log(`requesterIds: ${requesterIds.join(', ')}`);
+
+        const friendships = await Friendship.find({
+                 $or: [
+                // ① 내가 수신자(addressee)인 경우
+                { addressee: meId, requester: { $in: requesterIds } },
+
+                // ② 내가 발신자(requester)인 경우
+                { requester: meId, addressee: { $in: addresseeIds } },
+            ],
+            }).select('requester addressee status');
+
+        console.log(`Friendships found: ${friendships.length}`);
+
+            friendships.forEach(friendship => {
+            console.log(`friendship found: requester=${friendship.requester} addressee=${friendship.addressee}, status=${friendship.status}`);
+                
+            if (friendship.requester.toString() === meId.toString()) {
+                friendBy.set(friendship.addressee.toString(), friendship.status);
+            }else if (friendship.addressee.toString() === meId.toString()) {
+                friendBy.set(friendship.requester.toString(), friendship.status);
+            }
+        });
+    }
+
+    console.log(`friendBy map size: ${friendBy.size} ${Array.from(friendBy.entries()).map(([k,v])=>`${k}:${v}`).join(', ')}`);
+
+    return friendBy;
+}
+
+
+
+async function getFriendsByAccepted(roomId, meId) {
+    //get chatting messages...     
+    //get chatting messages...
+    const chats = await Chat.find({ room: roomId })
+                        .sort('createdAt')
+                        .lean();
+    if(!chats){
+        return [];
+    } 
+
+    const addresseeIdSet = new Set();
+    const requesterIdSet = new Set();
+    
+    chats.forEach(chat => {
+    if(chat.userId){
+        if(!addresseeIdSet.has(chat.userId.toString()) && chat.userId.toString() !== meId.toString()){
+            addresseeIdSet.add(chat.userId.toString());
+        }
+
+        if(!requesterIdSet.has(chat.userId.toString()) && chat.userId.toString() !== meId.toString()){
+            requesterIdSet.add(chat.userId.toString());
+            }
+        }
+    });
+
+    const addresseeIds = Array.from(addresseeIdSet);
+    const requesterIds = Array.from(requesterIdSet);
+
+    let friendBy = new Map(); 
+    if(addresseeIds.length > 0){
+        console.log(`addresseeIds: ${addresseeIds.join(', ')}`);
+        console.log(`requesterIds: ${requesterIds.join(', ')}`);
+
+        const friendships = await Friendship.find({
+                status: 'accepted',
+                $or: [
+                // 내가 수신자
+                { addressee: meId, requester: { $in: requesterIds } },
+                // 내가 발신자
+                { requester: meId, addressee: { $in: addresseeIds } },
+                ],
+        })
+        .select('requester addressee status')
+        .lean();
+
+        console.log(`Friendships found: ${friendships.length}`);
+
+            friendships.forEach(friendship => {
+            console.log(`friendship found: requester=${friendship.requester} addressee=${friendship.addressee}, status=${friendship.status}`);
+                
+            if (friendship.requester.toString() === meId.toString()) {
+                friendBy.set(friendship.addressee.toString(), friendship.status);
+            }else if (friendship.addressee.toString() === meId.toString()) {
+                friendBy.set(friendship.requester.toString(), friendship.status);
+            }
+        });
+    }
+
+    console.log(`friendBy map size: ${friendBy.size} ${Array.from(friendBy.entries()).map(([k,v])=>`${k}:${v}`).join(', ')}`);
+
+    return friendBy;
+}

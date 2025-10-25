@@ -30,6 +30,8 @@
           data-reply-socket-id="<%= sock %>" 
           data-reply-user="<%= from %>"
           data-reply-fromuser-id="<%= fromUserId %>"
+          data-reply-isfriend="<%= isFriend %>"
+          data-reply-friend-status="<%= friendStatus %>"
         <% } %>
       >
         <% /* 방송일 때도 아바타 숨김: not isSystem && not isWhisper && not isBroadcast */ %>
@@ -46,6 +48,7 @@
               data-fromuser-id="<%= fromUserId %>"
               data-user="<%= from %>"
               data-friend-status="<%= friendStatus %>"
+              data-isfriend="<%= isFriend %>"
             >
           <% } %>
         </div>
@@ -62,6 +65,7 @@
                   data-socket-id="<%= sock %>"
                   data-user="<%= from %>"
                   data-isfriend ="<%= isFriend %>"
+                  data-friend-status="<%= friendStatus %>"
                   data-fromuser-id="<%= fromUserId %>">답장</button>
               </div>
             <% } %>
@@ -72,7 +76,7 @@
               <span class="badge type-broadcast">방송</span>
               <span class="route"><%= from || 'Guest' %> → 모두</span>
               <span class="sock socket-id-display" data-socket-id="<%= sock %>" 
-                            data-fromuser-id="<%= fromUserId %>" data-isfriend="<%=isFriend%>" ><%= shortSock ? '(' + shortSock + ')' : '' %></span>
+                            data-fromuser-id="<%= fromUserId %>" data-isfriend="<%=isFriend%>" data-friend-status="<%= friendStatus %>"><%= shortSock ? '(' + shortSock + ')' : '' %></span>
             </div>
             <% if (chat.gif) { %>
               <img class="bubble-gif" src="/gif/<%= chat.gif %>" alt="gif">
@@ -84,7 +88,7 @@
             <!-- 일반(local) -->
             <% if (!isSystem) { %>
               <div class="meta">
-                <span class="name socket-id-display" data-socket-id="<%= sock %>" data-fromuser-id="<%= fromUserId %>" data-isfriend="<%=isFriend%>">
+                <span class="name socket-id-display" data-socket-id="<%= sock %>" data-fromuser-id="<%= fromUserId %>" data-isfriend="<%=isFriend%>" data-friend-status="<%= friendStatus %>">
                   <%= from || 'Guest' %> <%= shortSock ? '(' + shortSock + ')' : '' %>
                 </span>
                 <% if (isFriend) { %>
@@ -232,11 +236,16 @@ socket.on('whisper', data => {
   // 기존 클래스 + 타입 구분 클래스 추가
   div.className = 'message system whisper-in type-whisper';
 
+  const friends = data.friends;
+  const isFriend = !!(friends && friends[myUser.id]);
+  const friendStatus = isFriend? 'accepted' : '';
+
   // 답장에 쓰기 위해 데이터 보관
   div.dataset.replySocketId = data.fromSocketId || '';
   div.dataset.replyUser = data.fromUser || '';
   div.dataset.replyfromuserId = data.chat.userId || ''; 
-  div.dataset.isfriend = data.isFriend || false;
+  div.dataset.isfriend = isFriend;
+  div.dataset.friendStatus = friendStatus || '';
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble whisper-bubble'; // 버블에도 타입 클래스 추가
@@ -283,13 +292,14 @@ async function checkIsFriend(requester, addressee){/** 1) 수락된 친구 목�
 socket.on('chat', function (data) {
   // 서버에서 오는 형태에 따라 방어적으로 꺼내기
   const doc = data.chat || data;
+  const friends = data.friends;
 
   // 표시에 필요한 정보 추출
   const fromUser   = doc.user || data.user || 'Guest';
   const fromUserId = doc.userId || (data.chat && data.chat.userId) || data.fromUserId || '';
   const isMine     = data.socketId && socket.id === data.socketId;
-  const isFriend   = doc.isFriend ? doc.isFriend : false;
-  const friendStatus  = String(isFriend ?? 'accepted' ?? '');
+  const isFriend = !!(friends && friends[myUser.id]);
+  const friendStatus = isFriend? 'accepted' : '';
 
   const item = document.createElement('div');
   item.className = 'message ' + (isMine ? 'mine' : 'other');
@@ -330,6 +340,7 @@ socket.on('chat', function (data) {
   name.dataset.socketId   = data.socketId || '';
   name.dataset.fromuserId = fromUserId || '';
   name.dataset.isfriend   = String(isFriend);
+  name.dataset.friendStatus = friendStatus;
   name.textContent = `${fromUser} ${data.socketId ? '(' + String(data.socketId).substring(0,4) + '...)' : ''}`;
   meta.appendChild(name);
 
@@ -380,16 +391,6 @@ function displayChat(
         isMine,
         isFriend,
         friendStatus){
-    // 서버에서 오는 형태에 따라 방어적으로 꺼내기
-//   const doc = data.chat || data;
-
-//   // 표시에 필요한 정보 추출
-//   const fromUser   = doc.user || data.user || 'Guest';
-//   const fromUserId = doc.userId || (data.chat && data.chat.userId) || data.fromUserId || '';
-//   const isMine     = data.socketId && socket.id === data.socketId;
-
-//   // 친구 여부/상태 (서버에서 내려보내 주세요: data.isFriend, data.friendStatus)
-//   const friendStatus  = String(isFriend ?? 'accepted' ?? '');
 
   alert(`friendStatus :${friendStatus}`);
 
@@ -432,6 +433,7 @@ function displayChat(
   name.dataset.socketId   = data.socketId || '';
   name.dataset.fromuserId = fromUserId || '';
   name.dataset.isfriend   = String(isFriend);
+  name.dataset.friendStatus = friendStatus || '';
   name.textContent = `${fromUser} ${data.socketId ? '(' + String(data.socketId).substring(0,4) + '...)' : ''}`;
   meta.appendChild(name);
 
@@ -510,6 +512,7 @@ socket.on('broadcastchat', data => {
     sock.dataset.socketId = data.socketId;
     sock.dataset.fromuserId = data.chat.userId || ''; 
     sock.dataset.isfriend = data.isFriend || false;
+    sock.dataset.friendStatus = data.friendStatus || '';
     sock.textContent = ` (${shortSock})`;
     meta.appendChild(sock);
   }
@@ -759,6 +762,7 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
           user: whisperIn.dataset.replyUser || '',
           userId: whisperIn.dataset.replyfromuserId || '',
           isFriend: whisperIn.dataset.isfriend === 'true' || false,
+          friendStatus: whisperIn.dataset.friendStatus
         };
       }
 
@@ -768,11 +772,12 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
         const socketId = sockSpan.dataset.socketId || '';
         const fromUserId = sockSpan.dataset.fromuserId || '';
         const isFriend = sockSpan.dataset.isfriend === 'true' || false;
+        const friendStatus = sockSpan.dataset.friendStatus;
 
         // 텍스트: "닉네임 (ABCD...)" 형태일 수 있음
         const raw = (sockSpan.textContent || '').trim();
         const user = raw.split(' (')[0] || '';
-        return { socketId, user, fromUserId, isFriend };
+        return { socketId, user, fromUserId, isFriend, friendStatus };
       }
 
       // 3) 메시지 루트에서 socket-id-display 찾기 (버블 내부 등)
@@ -781,15 +786,16 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
         const inner = msg.querySelector('.socket-id-display');
         if (inner) {
           const socketId = inner.dataset.socketId || '';
-          const fromUserId = sockSpan.dataset.fromuserId || '';
+          const fromUserId = inner.dataset.fromuserId || '';
           const isFriend = inner.dataset.isfriend === 'true' || false;
+          const friendStatus = inner.dataset.friendStatus;
           const raw = (inner.textContent || '').trim();
           const user = raw.split(' (')[0] || '';
-          return { socketId, user, fromUserId, isFriend };
+          return { socketId, user, fromUserId, isFriend, friendStatus };
         }
       }
 
-      return { socketId: '', user: '', fromUserId: '', isFriend: false };
+      return { socketId: '', user: '', fromUserId: '', isFriend: false, friendStatus: '' };
     }
 
     /** 메뉴 표시 */
@@ -829,6 +835,8 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
         return;
       }
 
+      //alert(`info : ${info.isFriend} : ${info.friendStatus}`);
+
       // socketId가 없거나 내 메시지(내 소켓)라면 메뉴 띄우지 않음
       if (!info.socketId && !info.fromUserId) { hideMenu(); return; }
 
@@ -850,10 +858,12 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
       if(info.isFriend){
         const friendBtn = document.querySelector('#msg-context [data-action="friend"]');
         if(friendBtn) friendBtn.style.display = 'none';   
+      }else{
+        // if(info.friendStatus ='rejected' ||'blocked'){
+        //     hideMenu();
+        //     return;
+        // }
       }
-
-
-      
 
       ctx = info; // 저장
       clampAndShow(e.clientX, e.clientY);
