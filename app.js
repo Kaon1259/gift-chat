@@ -5,6 +5,7 @@ const passport = require('passport');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const redisClient = require(path.join(__dirname, 'middlewares', 'redisStorage'));
 const passportConfig = require(path.join(__dirname, 'passport'))
 const expressLayouts = require('express-ejs-layouts');
 const sessionMiddleware = require(path.join(__dirname, 'middlewares', 'sessionmw'));
@@ -83,5 +84,5 @@ const server = app.listen(app.get('port'), ()=>{
 
 //express server connect to webSocket,...
 webSocket(server, app, sessionMiddleware);
-
 dbConnect();
+app.set('redisClient', redisClient);

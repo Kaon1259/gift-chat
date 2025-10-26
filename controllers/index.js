@@ -3,6 +3,7 @@ const { col } = require('sequelize');
 const Room = require(path.join(__dirname, '..', 'schemas', 'room'));
 const Chat = require(path.join(__dirname, '..', 'schemas', 'chat'));
 const Friendship = require(path.join(__dirname, '..', 'schemas', 'friendShip'));
+const {getSid, addAttendee} = require(path.join(__dirname, 'redisController'));
 require('dotenv').config();
 
 
@@ -62,15 +63,15 @@ exports.createRoom = async(req, res, next)=>{
 
 exports.enterRoom = async(req, res, next) => {
     try{
-        const id = req.params.id; //room id
+        const roomId = req.params.id; //room id
         const password = req.query.password;
-        console.log(`enterRoom ; ${id}, ${password}`);
+        console.log(`enterRoom ; ${roomId}, ${password}`);
         
         const userColor =  req.session.color; 
         const nick = req.user.nick;
         const meId = req.user._id;
 
-        const room = await Room.findOne({_id: id});
+        const room = await Room.findOne({_id: roomId});
 
         if(!room){
             return res.redirect('/?error=존재하지 않는 방 입니다.')
@@ -82,12 +83,12 @@ exports.enterRoom = async(req, res, next) => {
 
         const io = req.app.get('io');
         const {rooms} = io.of('/chat').adapter;
-        if(room.max <= rooms.get(id)?.size){
+        if(room.max <= rooms.get(roomId)?.size){
             return res.redirect('/?error=허용 인원을 초과했습니다.')
         }
 
         //get chatting messages...
-        const chats = await Chat.find({ room: room._id })
+        const chats = await Chat.find({ room: roomId })
                         .sort('createdAt')
                         .lean();
         
@@ -95,6 +96,9 @@ exports.enterRoom = async(req, res, next) => {
         friendBy = await getFriends(chats, meId);
 
         console.log(`friendBy map size: ${friendBy.size} ${Array.from(friendBy.entries()).map(([k,v])=>`${k}:${v}`).join(', ')}`);
+
+        //redis에 등록
+        enterTheRoom(req, roomId, meId, nick);
 
         const chatsWithFriendFlag = chats.map(c => {
             console.log(`Processing chat from userId: ${c.userId}`);
@@ -227,6 +231,7 @@ exports.broadcastChat = async(req, res, next)=>{
         const userId = req.user._id;
         const color = req.session.color;
         const chatData = req.body.chat;
+        const socketId = req.session.socketId;
 
         const chat = await Chat.create({
             room: roomId,
@@ -242,7 +247,8 @@ exports.broadcastChat = async(req, res, next)=>{
         friendBy = await getFriendsByAccepted(roomId, userId);
         const friendsObj = Object.fromEntries(friendBy);
 
-        req.app.get('io').of('/chat').emit('broadcastchat', { chat, friends:friendsObj });
+        console.log(`broadcastchat: ${req.params.id} : ${req.body.chat}, color:${chat.color} socketId:${req.session.socketId}`);
+        req.app.get('io').of('/chat').emit('broadcastchat', { chat, friends:friendsObj, socketId: socketId || null });
         res.send('ok');
     }catch(err){
         console.log(err);
@@ -301,6 +307,11 @@ exports.whisperChat = async(req, res, next)=>{
             to: targetSocketUser,
             chat: chatData,
         });
+
+        let friendBy = new Map();
+        friendBy = await getFriendsByAccepted(roomId, userId);
+        const friendsObj = Object.fromEntries(friendBy);
+
         const io = req.app.get('io');
         const chatIo = io.of('/chat');
         
@@ -316,6 +327,14 @@ exports.whisperChat = async(req, res, next)=>{
                 fromSocketId: req.session.socketId, // 발신자 소켓 ID (필요시)
                 chat: chatData
             });
+
+            targetSocket.emit('whisper', {
+                fromUser: sourceSocketUser,
+                fromSocketId: req.session.socketId, // 발신자 소켓 ID (필요시)
+                chat: chatData,
+                friends:friendsObj
+            });
+
             console.log(`[Whisper 성공] ${sourceSocketUser} -> ${targetSocketId}: ${chatData}`);
             res.send('ok');
         } else {
@@ -326,6 +345,22 @@ exports.whisperChat = async(req, res, next)=>{
 
     }catch(err){
         console.log(err);
+        next(err);
+    }
+}
+
+
+exports.leave = async(req, res, next) =>{
+    const roomId = req.params.id;
+    //const {userId, nick} = req.body;
+
+    console.log(`leave:roomId = ${roomId}`);
+
+    try{
+        req.app.get('io').of('/chat').to(roomId).emit('leave', {roomId });
+        res.status(200).json({message:'방에서 나갔습니다.'})
+    }catch(err){
+        console.log(`leave: error ${err}`);
         next(err);
     }
 }
@@ -458,4 +493,15 @@ async function getFriendsByAccepted(roomId, meId) {
     console.log(`friendBy map size: ${friendBy.size} ${Array.from(friendBy.entries()).map(([k,v])=>`${k}:${v}`).join(', ')}`);
 
     return friendBy;
+}
+
+async function enterTheRoom(req, roomId, userId, nick){
+    const redisClient = req.app.get('redisClient');
+
+    if(redisClient){
+        addAttendee(req.app.get('redisClient'), roomId, String(userId), String(nick), (err, ok) => {
+            if (err) console.error(err);
+            else console.log('등록 완료');
+        });
+    }
 }

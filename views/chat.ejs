@@ -161,7 +161,7 @@
     </form>
 
     <form action="/broadcastchat" id="broadcastchat-form" method="post" class="composer-row">
-      <label class="composer-label" for="broadcastchat-inpu">외치기</label>
+      <label class="composer-label" for="broadcastchat-input">외치기</label>
       <input type="text" id="broadcastchat-input" name="chat" placeholder="모두에게 외치기">
       <button type="submit" class="btn">전송</button>
     </form>
@@ -245,7 +245,7 @@ socket.on('whisper', data => {
   div.dataset.replyUser = data.fromUser || '';
   div.dataset.replyfromuserId = data.chat.userId || ''; 
   div.dataset.isfriend = isFriend;
-  div.dataset.friendStatus = friendStatus || '';
+  div.dataset.friendStatus = friendStatus;
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble whisper-bubble'; // 버블에도 타입 클래스 추가
@@ -269,7 +269,8 @@ socket.on('whisper', data => {
   replyBtn.dataset.socketId = data.fromSocketId || '';
   replyBtn.dataset.user = data.fromUser || '';
   replyBtn.dataset.fromuserId = data.chat.userId || ''; 
-  replyBtn.dataset.isfriend = data.isFriend || false;
+  replyBtn.dataset.isfriend = isFriend;
+  replyBtn.dataset.friendStatus = friendStatus;
   replyBtn.textContent = '답장';
   actions.appendChild(replyBtn);
   bubble.appendChild(actions);
@@ -351,7 +352,7 @@ socket.on('chat', function (data) {
     badge.title = friendStatus; // 예: accepted/requested 등
     badge.dataset.fromuserId   = fromUserId || '';
     badge.dataset.user         = fromUser;
-    badge.dataset.isfriend     = 'true';
+    badge.dataset.isfriend     = isFriend;
     badge.dataset.friendStatus = friendStatus;
     badge.textContent = '친구';
     meta.appendChild(badge);
@@ -479,6 +480,18 @@ function displayChat(
 
   // 방송 채팅
 socket.on('broadcastchat', data => {
+
+  const doc = data.chat || data;
+  const friends = data.friends;
+
+  // 표시에 필요한 정보 추출
+  const fromUser   = doc.user || data.user || 'Guest';
+  const fromUserId = doc.userId || (data.chat && data.chat.userId) || data.fromUserId || '';
+  const isMine     = data.socketId && socket.id === data.socketId;
+  const isFriend = !!(friends && friends[myUser.id]);
+  const friendStatus = isFriend? 'accepted' : '';
+  const socketId = data.socketId;
+
   // data: { user, chat, gif, socketId? }
   const item = document.createElement('div');
   item.className = 'message system type-broadcast';   // 전체 폭 + 중앙 정렬
@@ -505,14 +518,15 @@ socket.on('broadcastchat', data => {
   meta.append(icon, badge, route);
 
   // (선택) 짧은 소켓ID 표시
-  if (data.socketId) {
-    const shortSock = `${String(data.socketId).substring(0,4)}...`;
+  if (socketId) {
+    const shortSock = `${String(socketId).substring(0,4)}...`;
     const sock = document.createElement('span');
     sock.className = 'sock socket-id-display';
-    sock.dataset.socketId = data.socketId;
-    sock.dataset.fromuserId = data.chat.userId || ''; 
-    sock.dataset.isfriend = data.isFriend || false;
-    sock.dataset.friendStatus = data.friendStatus || '';
+    sock.dataset.isMine = isMine;
+    sock.dataset.socketId = socketId;
+    sock.dataset.fromuserId = fromUserId || ''; 
+    sock.dataset.isfriend = isFriend;
+    sock.dataset.friendStatus = friendStatus;
     sock.textContent = ` (${shortSock})`;
     meta.appendChild(sock);
   }
@@ -523,7 +537,7 @@ socket.on('broadcastchat', data => {
   if (data.chat) {
     const text = document.createElement('div');
     text.className = 'text';
-    text.textContent = data.chat;     // XSS 안전
+    text.textContent = doc.chat;     // XSS 안전
     bubble.appendChild(text);
   }
   if (data.gif) {
@@ -538,7 +552,6 @@ socket.on('broadcastchat', data => {
   chatList.appendChild(item);
   item.scrollIntoView({ block: 'end' });
 });
-
 
   const whisperTargetUserInput = document.querySelector('#whisper-target-user');
   
@@ -697,7 +710,7 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
     const exitBtn = document.getElementById('exit-btn');
     if (!exitBtn) return;
 
-    exitBtn.addEventListener('click', (e) => {
+    exitBtn.addEventListener('click', async(e) => {
       e.preventDefault();
       const href = exitBtn.getAttribute('href') || '/';
       const roomId = new URL(location).pathname.split('/').at(-1);
@@ -709,20 +722,45 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
       };
 
       // 소켓으로 leave 보내고 ACK 받으면 이동
-      let moved = false;
-      socket.timeout(1000).emit('leave', { roomId, user: userInfo }, () => {
-        if (!moved) {
-          moved = true;
-          location.assign(href);
-        }
-      });
+    //   let moved = false;
+    //   socket.timeout(1000).emit('leave', { roomId, user: userInfo }, () => {
+    //     if (!moved) {
+    //       moved = true;
+    //       location.assign(href);
+    //     }
+    //   });
 
-      // 1초 내 ACK 못 받으면 폴백으로 그냥 이동
-      setTimeout(() => {
-        if (!moved) location.assign(href);
-      }, 1200);
-    });
-  })();
+    //   // 1초 내 ACK 못 받으면 폴백으로 그냥 이동
+    //   setTimeout(() => {
+    //     if (!moved) location.assign(href);
+    //   }, 1200);
+    // });
+
+    let moved = false;
+    const move = () => { if (!moved) { moved = true; location.assign(href); } };
+
+      try {
+        const res = await axios.post(`/room/${roomId}/leave`, {
+            userId:userInfo.id,
+            nick:userInfo.nick
+        });
+      
+        if(res.status === 200){
+            alert(`${res.data.message ? '(' + res.data.message + ')' : ''}`);
+        }else if(res.status === 201){
+            alert(`${ctx.user}님 ${res.data.message ? '(' + res.data.message + ')' : ''}`);
+        }
+        else{
+           alert('방나가기에 실패했습니다: ' + (res.data.message || '알 수 없는 오류'));
+        }
+      } catch (err) {
+          console.error(err);
+          alert('방 나가기 요청중 오류가 발생했습니다.');
+      }finally{
+        move();
+      }
+  })
+})();
 
   // 엿보기 하다 대회에 참여하기
   (function() {
@@ -840,29 +878,26 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
       // socketId가 없거나 내 메시지(내 소켓)라면 메뉴 띄우지 않음
       if (!info.socketId && !info.fromUserId) { hideMenu(); return; }
 
-      if(info.socketId){  //나 자신일때 
-        if (info.socketId === (socket && socket.id)) { hideMenu(); return; }
-      }else if(!info.fromUserId){  //소켓은 없고 유저아이디도 없을때
-        hideMenu(); return;
-      }
+      if(info.socketId){
+        if (info.socketId === (socket && socket.id)) { //나 자신인 경우
+          hideMenu(); 
+          return; 
+        }
+        else{ //다른 사람인 경우
+          //alert(`socket exist: isFriend ${info.isFriend}`);
+          toggleButton('friend', !info.isFriend);
 
-      if(!info.socketId && info.isFriend){
-        hideMenu(); return;
-      }
-
-      if(!info.socketId){
-        const whisperBtn = document.querySelector('#msg-context [data-action="whisper"]');
-        if(whisperBtn) whisperBtn.style.display = 'none';
-      }
-
-      if(info.isFriend){
-        const friendBtn = document.querySelector('#msg-context [data-action="friend"]');
-        if(friendBtn) friendBtn.style.display = 'none';   
+          toggleButton('whisper', true);  //귓속말 보이기
+        }
       }else{
-        // if(info.friendStatus ='rejected' ||'blocked'){
-        //     hideMenu();
-        //     return;
-        // }
+        //귓속말 메뉴 display:none
+        toggleButton('whisper');
+
+        if(info.isFriend){
+          hideMenu(); return;
+        }else{
+          toggleButton('friend', true);
+        }
       }
 
       ctx = info; // 저장
@@ -928,6 +963,19 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
     /** 모바일 롱프레스 대응(선택) */
     // 필요하면 터치 길게 눌러서 contextmenu와 동일 동작하도록 구현할 수 있습니다.
   })();
+
+  function toggleButton(btnName, fshow= false){
+    let btn = null;
+
+    if('friend' === btnName)
+      btn = document.querySelector('#msg-context [data-action="friend"]');
+    else if('whisper' === btnName)
+      btn = document.querySelector('#msg-context [data-action="whisper"]');
+
+    if(btn){
+      btn.style.display = fshow ? 'block' : 'none'; 
+    }
+  }
 </script>
 
 <script>
