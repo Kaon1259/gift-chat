@@ -3,7 +3,7 @@ const { col } = require('sequelize');
 const Room = require(path.join(__dirname, '..', 'schemas', 'room'));
 const Chat = require(path.join(__dirname, '..', 'schemas', 'chat'));
 const Friendship = require(path.join(__dirname, '..', 'schemas', 'friendShip'));
-const {getSid, addAttendee} = require(path.join(__dirname, 'redisController'));
+const {getSid, addAttendee, removeAttendee} = require(path.join(__dirname, 'redisController'));
 require('dotenv').config();
 
 
@@ -349,16 +349,22 @@ exports.whisperChat = async(req, res, next)=>{
     }
 }
 
-
 exports.leave = async(req, res, next) =>{
     const roomId = req.params.id;
-    //const {userId, nick} = req.body;
+    const {userId, nick} = req.body;
 
     console.log(`leave:roomId = ${roomId}`);
 
     try{
-        req.app.get('io').of('/chat').to(roomId).emit('leave', {roomId });
-        res.status(200).json({message:'방에서 나갔습니다.'})
+        if(roomId){
+            if(userId){
+                leaveTheRoom(req, roomId, userId)
+            }
+        
+            req.app.get('io').of('/chat').to(roomId).emit('leave', {roomId });
+            return res.status(200).json({message:'방에서 나갔습니다.'})
+        }
+        return res.status(500).json({message:'잘못된 요청 입니다.'})
     }catch(err){
         console.log(`leave: error ${err}`);
         next(err);
@@ -499,9 +505,20 @@ async function enterTheRoom(req, roomId, userId, nick){
     const redisClient = req.app.get('redisClient');
 
     if(redisClient){
-        addAttendee(req.app.get('redisClient'), roomId, String(userId), String(nick), (err, ok) => {
+        addAttendee(redisClient, roomId, String(userId), String(nick), (err, ok) => {
             if (err) console.error(err);
             else console.log('등록 완료');
+        });
+    }
+}
+
+async function leaveTheRoom(req, roomId, userId){
+    const redisClient = req.app.get('redisClient');
+
+    if(redisClient){
+        removeAttendee(redisClient, roomId, String(userId), (err, ok) => {
+            if (err) console.error(err);
+            else console.log('완료');
         });
     }
 }

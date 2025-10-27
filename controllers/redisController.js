@@ -33,7 +33,7 @@ exports.addAttendee = async(store, roomId, attendeeId, nick, callback) => {
 
     console.log(`addAttendee: ${roomId}/${attendeeId}/${nick}`);
 
-    store.hSet(key, attendeeId, nick)
+    store.hSet(key, String(attendeeId), String(nick))
          .then(() => {
             console.log(`Added attendee: ${attendeeId} (${nick})`);
             callback(null, true);
@@ -45,23 +45,26 @@ exports.addAttendee = async(store, roomId, attendeeId, nick, callback) => {
     );
 }
 
-exports.removeAttendee = async (req, roomId, userId) => {
+exports.removeAttendee = async (store, roomId, attendeeId, callback) => {
   try {
-    const redis = req.app.get('redisClient');   // app.set('redisClient', redisClient) 구조
-    if (!redis) throw new Error('Redis client not found');
-
-    const key = `room:${roomId}:attendees`;
-    const result = await redis.hDel(key, userId);
-
-    if (result > 0) {
-      console.log(`🗑️ Deleted attendee ${userId} from ${key}`);
-      return true;
-    } else {
-      console.log(`⚠️ Attendee ${userId} not found in ${key}`);
-      return false;
-    }
+      if (!store) {
+        console.error('Redis client not found');
+        return callback(new Error('Redis client not found'));
+      }
+      
+      const key = `room:${roomId}:attendees`;
+      store.hDel(key, String(attendeeId))
+         .then(() => {
+            console.log(`removeAttendee: ${attendeeId}`);
+            callback(null, true);
+        })
+        .catch(err => {
+            console.error('removeAttendee error:', err);
+            callback(err);
+        }
+    );
   } catch (err) {
-    console.error('❌ removeAttendee error:', err);
-    throw err;
+    console.error('removeAttendee error:', err);
+    callback(err);
   }
 };
