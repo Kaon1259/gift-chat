@@ -20,9 +20,9 @@ exports.renderIndex = async(req, res, next) =>{
 
 exports.renderMain = async(req, res, next)=> {
     try{
-        const rooms = await Room.find({})
-                .sort({ createdAt: -1 })   // 최신순 정렬 (내림차순)   오름차순 : 1
-                .limit(10);         
+        const rooms = await Room.find({status:'on'})
+            .sort({ createdAt: -1 })   // 최신순 정렬 (내림차순)   오름차순 : 1
+            .limit(10);         
 
         return res.render('main', {rooms, title: 'GIF 채팅방', activeMenu: 'rooms'});
     }catch(err){
@@ -45,6 +45,7 @@ exports.createRoom = async(req, res, next)=>{
             max : max,
             owner: req.user.nick, 
             ownerId: req.user._id,
+            ownerColor: req.session.color,
             password: password,
         });
 
@@ -70,6 +71,7 @@ exports.enterRoom = async(req, res, next) => {
         const userColor =  req.session.color; 
         const nick = req.user.nick;
         const meId = req.user._id;
+        const socketId = req.session.socketId;
 
         const room = await Room.findOne({_id: roomId});
 
@@ -98,7 +100,7 @@ exports.enterRoom = async(req, res, next) => {
         console.log(`friendBy map size: ${friendBy.size} ${Array.from(friendBy.entries()).map(([k,v])=>`${k}:${v}`).join(', ')}`);
 
         //redis에 등록
-        enterTheRoom(req, roomId, meId, nick);
+        enterTheRoom(req, roomId, meId, nick, socketId);
 
         const chatsWithFriendFlag = chats.map(c => {
             console.log(`Processing chat from userId: ${c.userId}`);
@@ -181,10 +183,24 @@ exports.enterGlimpse = async(req, res, next) => {
 exports.removeRoom = async(req, res, next) =>{
     try{
         const id = req.params.id;
+        const password = req.params.password;
+        
+        console.log(`removeRoom ${id}/${password}`);
+
         if(id){
-            await Room.deleteOne({_id: req.params.id})
-            await Chat.deleteOne({room: id});
-            return res.status(200).send('ok');
+            const result = await Room.updateOne(
+                { _id: id, password: password },  // 🔍 조건 (id + password 일치)
+                { $set: { status: 'off' } }       // 🔧 업데이트 내용
+            );
+
+            if (result.matchedCount === 0) {
+                return res.status(404).send('일치하는 방이 없습니다.');
+            }
+
+            if (result.modifiedCount === 1) {
+                console.log(`방(${id}) 상태가 'off'로 변경되었습니다.`);
+                return res.status(200).send('ok');
+            }
         }
         return res.status(500).send('server error');
     }catch(err){
@@ -361,7 +377,7 @@ exports.leave = async(req, res, next) =>{
                 leaveTheRoom(req, roomId, userId)
             }
         
-            req.app.get('io').of('/chat').to(roomId).emit('leave', {roomId });
+            req.app.get('io').of('/chat').to(roomId).emit('leave', {roomId, chat:`${nick}님이 나가셨습니다.` });
             return res.status(200).json({message:'방에서 나갔습니다.'})
         }
         return res.status(500).json({message:'잘못된 요청 입니다.'})
@@ -501,11 +517,11 @@ async function getFriendsByAccepted(roomId, meId) {
     return friendBy;
 }
 
-async function enterTheRoom(req, roomId, userId, nick){
+async function enterTheRoom(req, roomId, userId, nick, socketId){
     const redisClient = req.app.get('redisClient');
 
     if(redisClient){
-        addAttendee(redisClient, roomId, String(userId), String(nick), (err, ok) => {
+        addAttendee(redisClient, roomId, String(userId), String(nick), String(socketId) , (err, ok) => {
             if (err) console.error(err);
             else console.log('등록 완료');
         });

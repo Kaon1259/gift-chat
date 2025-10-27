@@ -15,6 +15,7 @@
           <col class="col-count">    <!-- 인원: 고정폭, nowrap -->
           <col class="col-owner">    <!-- 방장: 중간폭(말줄임) -->
           <col class="col-action">   <!-- 액션: 최소폭 -->
+          <col class="col-action">   <!-- 액션: 최소폭 -->
           <col class="col-created">  <!-- 생성시간: 고정폭, nowrap -->
         </colgroup>
 
@@ -32,9 +33,12 @@
 
         <tbody>
         <% if (Array.isArray(rooms) && rooms.length) { %>
-          <% rooms.forEach(function(room) { 
+          <% rooms.forEach((room) =>{ 
                const current = room.current || (room.members ? room.members.length : 0); 
                const created = room.createdAt ? new Date(room.createdAt) : null;
+               const isMine  = user._id.toString() === room.ownerId.toString() ? true : false;
+
+               console.log(`room isMine: ${isMine} ${user._id} : ${room.ownerId}`);
 
                // 상대시간(일/시간/분 전)
                function rel(created) {
@@ -84,12 +88,21 @@
                 data-id="<%= room._id %>"
                 class="btn join-btn">입장</button>
             </td>
+            <%if(!isMine) {%>
             <td class="action-cell">
               <button
                 data-password="<%= room.password ? 'true' : 'false' %>"
                 data-id="<%= room._id %>"
                 class="btn glimpse-btn">엿보기</button>
             </td>
+            <%}else{%>
+              <td class="action-cell">
+              <button
+                data-password="<%= room.password ? 'true' : 'false' %>"
+                data-id="<%= room._id %>"
+                class="btn delete-btn">삭제</button>
+            </td>
+            <%}%>  
             <td class="cell-created" title="<%= room.createdAt ? room.createdAt.toISOString() : '' %>">
               <span class="created-relative"><%= relativeText %></span>
               <span class="created-sep"> · </span>
@@ -169,35 +182,47 @@
       : (Array.isArray(data.members) ? data.members.length : 0);
 
     const createdAt = data.createdAt ? new Date(data.createdAt) : new Date();
+    const isMine = user._id.toString() === data.ownerId.toString() ? true : false;
 
     tr.dataset.current = String(current);
     tr.dataset.max = String(data.max);
 
     tr.innerHTML = `
-      <td class="cell-title" title="${data.title || ''}">
-        <span class="title-text">${data.title || ''}</span>
-      </td>
-      <td class="cell-type">${data.password ? '비밀방' : '공개방'}</td>
-      <td class="cell-count" id="count-${data._id}">${current} / ${data.max}</td>
-      <td class="cell-owner" title="${data.owner || ''}" ${data.ownerColor ? `style="color:${data.ownerColor}"` : ''}>
-        <span class="owner-text">${data.owner || ''}</span>
-      </td>
-      <td class="action-cell">
-        <button class="btn join-btn"
-          data-password="${data.password ? 'true' : 'false'}"
-          data-id="${data._id}">입장</button>
-      </td>
-      <td class="action-cell">
-        <button class="btn glimpse-btn"
-          data-password="${data.password ? 'true' : 'false'}"
-          data-id="${data._id}">엿보기</button>
-      </td>
-      <td class="cell-created" title="${createdAt.toISOString()}">
-        <span class="created-relative">${formatRelative(createdAt)}</span>
-        <span class="created-sep"> · </span>
-        <span class="created-abs">${formatAbsolute(createdAt)}</span>
-      </td>
-    `;
+    <td class="cell-title" title="${data.title || ''}">
+      <span class="title-text">${data.title || ''}</span>
+    </td>
+    <td class="cell-type">${data.password ? '비밀방' : '공개방'}</td>
+    <td class="cell-count" id="count-${data._id}">${current} / ${data.max}</td>
+    <td class="cell-owner" title="${data.owner || ''}" ${data.ownerColor ? `style="color:${data.ownerColor}"` : ''}>
+      <span class="owner-text">${data.owner || ''}</span>
+    </td>
+    <td class="action-cell">
+      <button class="btn join-btn"
+        data-password="${data.password ? 'true' : 'false'}"
+        data-id="${data._id}">입장</button>
+    </td>
+    ${data.isMine 
+        ? // isMine이 true일 때: 삭제 버튼
+        `<td class="action-cell">
+          <button
+            data-password="${data.password ? 'true' : 'false'}"
+            data-id="${data._id}"
+            class="btn delete-btn">삭제</button>
+        </td>`
+        : // isMine이 false일 때: 엿보기 버튼
+        `<td class="action-cell">
+          <button
+            data-password="${data.password ? 'true' : 'false'}"
+            data-id="${data._id}"
+            class="btn glimpse-btn">엿보기</button>
+        </td>`
+    }
+    <td class="cell-created" title="${createdAt.toISOString()}">
+      <span class="created-relative">${formatRelative(createdAt)}</span>
+      <span class="created-sep"> · </span>
+      <span class="created-abs">${formatAbsolute(createdAt)}</span>
+    </td>
+`;
     //tbody.appendChild(tr);
     tbody.insertBefore(tr, tbody.firstChild);
   });
@@ -222,7 +247,9 @@
 
     if (btn.dataset.password === 'true') {
       const password = prompt('비밀번호를 입력하세요');
-      location.href = '/room/' + btn.dataset.id + '?password=' + encodeURIComponent(password || '');
+      if(password){
+        location.href = '/room/' + btn.dataset.id + '?password=' + encodeURIComponent(password || '');
+      }
     } else {
       location.href = '/room/' + btn.dataset.id;
     }
@@ -235,12 +262,28 @@
 
     if (btn.dataset.password === 'true') {
       const password = prompt('비밀번호를 입력하세요');
-      location.href = '/glimpse/' + btn.dataset.id + '?password=' + encodeURIComponent(password || '');
+      if(password){
+        location.href = '/glimpse/' + btn.dataset.id + '?password=' + encodeURIComponent(password || '');
+      }
     } else {
       location.href = '/glimpse/' + btn.dataset.id;
     }
   });
 
+  // 방삭제 버튼
+  document.querySelector('#room-list tbody').addEventListener('click', function (e) {
+    const btn = e.target.closest('.delete-btn');
+    if (!btn) return;
+
+    if (btn.dataset.password === 'true') {
+      const password = prompt('비밀번호를 입력하세요');
+      if(password){
+        location.href = '/room/' + btn.dataset.id + '/delete/' + btn.dataset.password;
+      }
+    } else {
+      location.href = '/room/' + btn.dataset.id + '/delete/';
+    }
+  });
 
   // 에러 메시지 알림
   window.addEventListener('load', () => {

@@ -393,7 +393,7 @@ function displayChat(
         isFriend,
         friendStatus){
 
-  alert(`friendStatus :${friendStatus}`);
+  //alert(`friendStatus :${friendStatus}`);
 
   const item = document.createElement('div');
   item.className = 'message ' + (isMine ? 'mine' : 'other');
@@ -721,20 +721,6 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
         nick: '<%= user.nick %>',
       };
 
-      // 소켓으로 leave 보내고 ACK 받으면 이동
-    //   let moved = false;
-    //   socket.timeout(1000).emit('leave', { roomId, user: userInfo }, () => {
-    //     if (!moved) {
-    //       moved = true;
-    //       location.assign(href);
-    //     }
-    //   });
-
-    //   // 1초 내 ACK 못 받으면 폴백으로 그냥 이동
-    //   setTimeout(() => {
-    //     if (!moved) location.assign(href);
-    //   }, 1200);
-    // });
 
     let moved = false;
     const move = () => { if (!moved) { moved = true; location.assign(href); } };
@@ -743,16 +729,17 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
         const res = await axios.post(`/room/${roomId}/leave`, {
             userId:userInfo.id,
             nick:userInfo.nick
-        });
-      
-        if(res.status === 200){
+        }).then((res)=>{
+          if(res.status === 200)
             alert(`${res.data.message ? '(' + res.data.message + ')' : ''}`);
-        }else if(res.status === 201){
+          else if(res.status === 201)
             alert(`${ctx.user}님 ${res.data.message ? '(' + res.data.message + ')' : ''}`);
-        }
-        else{
-           alert('방나가기에 실패했습니다: ' + (res.data.message || '알 수 없는 오류'));
-        }
+          else
+            alert('방나가기에 실패했습니다: ' + (res.data.message || '알 수 없는 오류'));
+        }).catch(err=>{
+          console.error(err);
+          alert('방 나가기 요청중 오류가 발생했습니다.');
+        });
       } catch (err) {
           console.error(err);
           alert('방 나가기 요청중 오류가 발생했습니다.');

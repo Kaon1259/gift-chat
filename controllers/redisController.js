@@ -22,7 +22,7 @@ exports.getSid = async(store, sid, callBack) =>{
 }
 
 
-exports.addAttendee = async(store, roomId, attendeeId, nick, callback) => {
+exports.addAttendee = async(store, roomId, attendeeId, nick, socketId, callback) => {
 
     if (!store) {
         console.error('Redis client not found');
@@ -33,7 +33,7 @@ exports.addAttendee = async(store, roomId, attendeeId, nick, callback) => {
 
     console.log(`addAttendee: ${roomId}/${attendeeId}/${nick}`);
 
-    store.hSet(key, String(attendeeId), String(nick))
+    store.hSet(key, String(attendeeId), String(socketId))
          .then(() => {
             console.log(`Added attendee: ${attendeeId} (${nick})`);
             callback(null, true);
@@ -65,6 +65,47 @@ exports.removeAttendee = async (store, roomId, attendeeId, callback) => {
     );
   } catch (err) {
     console.error('removeAttendee error:', err);
+    callback(err);
+  }
+};
+
+
+exports.updateSocketId = async (store, roomId, attendeeId, socketId, callback) => {
+
+  try {
+      if (!store) {
+        console.error('Redis client not found');
+        return callback(new Error('Redis client not found'));
+      }
+      
+      const key = `room:${roomId}:attendees`;
+
+      // 레이스 방지로 존재 확인 후 업데이트(선택)
+      const exists = await store.hExists(key, String(attendeeId));
+      if (!exists) {
+            store.hSet(key, String(attendeeId), String(socketId))
+           .then(() => {
+            console.log(`updateSocketId: ${attendeeId}`);
+            callback(null, true);
+            })
+            .catch(err => {
+                console.error('updateSocketId error:', err);
+                callback(err);
+            })
+      }
+
+      hSet(key, String(attendeeId), String(socketId))
+         .then(() => {
+            console.log(`updateSocketId: ${attendeeId}`);
+            callback(null, true);
+        })
+        .catch(err => {
+            console.error('updateSocketId error:', err);
+            callback(err);
+        }
+    );
+  } catch (err) {
+    console.error('updateSocketId error:', err);
     callback(err);
   }
 };

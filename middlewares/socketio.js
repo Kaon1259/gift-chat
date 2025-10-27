@@ -74,22 +74,6 @@ module.exports = (server, app, sessionMiddleware) =>{
             }
         });
 
-        // socket.on('join', (roomId)=>{
-        //     console.log(`chat.join : data = ${roomId}`);
-        //     socket.join(roomId);
-
-        //     console.log(`socket.on:join: ${session.color}`);
-
-        //     socket.to(roomId).emit('join', {
-        //         user: 'system',
-        //         chat: `Guest님이 입장하셨습니다.`
-        //     })
-            
-        //     if (roomId) {
-        //         broadcastRoomCount(io, roomId);
-        //     }
-        // });
-
          socket.on('join', (payload)=>{
             const {roomId, user} = payload;
 

@@ -25,6 +25,11 @@ const roomSchema = new mongoose.Schema({
             type: String,
             required : false,
         },
+        ownerColor: {
+            type: String,
+            required: true,
+            default: "#000000",
+        },
         password: {
             type: String,
         },
@@ -32,6 +37,12 @@ const roomSchema = new mongoose.Schema({
             type: Date,
             default: Date.now,
         },
+        status:{
+            type: String,
+            required: true,
+            default: 'on',
+            enum: ['on', 'off'],
+        }
     },
     {
         timestamps : true,
