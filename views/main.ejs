@@ -290,13 +290,14 @@
 
     const roomId = btn.dataset.id;
     await axios.delete(`/room/${encodeURIComponent(roomId)}/`,{data :{password}})
-      .then((res)=>{
+      .then((res)=>{ 
         const {message} = res.data;
-        alert(message);
 
         if(res.status === 200){
           const row = btn.closest('tr');
           if (row) row.remove();
+        }else if(res.status === 201){
+          alert(message);
         }
       })
       .catch((err)=>{

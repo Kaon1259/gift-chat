@@ -129,3 +129,29 @@ exports.getAttandeeSocketId = async(store, roomId, attendeeId) => {
   }
   return null;
 }
+
+exports.removeChattingRoomInfo = async(store, roomId) => {
+  try {
+      if (!store) {
+        console.error('Redis client not found');
+        return null;
+      }
+      
+      const key = `room:${roomId}:attendees`;
+    
+      const result = await store.del(key);
+
+      if (result === 1) {
+        console.log(`${key} 삭제 완료`);
+      } else {
+        console.log(`${key}는 존재하지 않음`);
+      }
+
+      return result;
+  }
+  catch (err) {
+    console.error('removeChattingRoomInfo error:', err);
+  }
+
+  return 0;
+}

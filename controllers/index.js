@@ -3,7 +3,7 @@ const { col } = require('sequelize');
 const Room = require(path.join(__dirname, '..', 'schemas', 'room'));
 const Chat = require(path.join(__dirname, '..', 'schemas', 'chat'));
 const Friendship = require(path.join(__dirname, '..', 'schemas', 'friendShip'));
-const {getSid, addAttendee, removeAttendee, updateAttendeeSocketId, getAttandeeSocketId} = require(path.join(__dirname, 'redisController'));
+const {getSid, addAttendee, removeAttendee, updateAttendeeSocketId, getAttandeeSocketId, removeChattingRoomInfo} = require(path.join(__dirname, 'redisController'));
 require('dotenv').config();
 
 
@@ -50,11 +50,16 @@ exports.createRoom = async(req, res, next)=>{
         });
 
         const  io = req.app.get('io');
-        io.of('/room').emit('newRoom', newRoom);
-        if(password){
-            res.redirect(`/room/${newRoom._id}?password=${password}`);
-        }else{
-            res.redirect(`/room/${newRoom._id}`);
+        if(io){
+            io.of('/room').emit('newRoom', newRoom);
+            if(password){
+                res.redirect(`/room/${newRoom._id}?password=${password}`);
+            }else{
+                res.redirect(`/room/${newRoom._id}`);
+            }
+        }
+        else{
+            console.log(`createRoom io is not exist`);
         }
     }catch(err){
         console.log(err);
@@ -85,6 +90,7 @@ exports.enterRoom = async(req, res, next) => {
 
         const io = req.app.get('io');
         const {rooms} = io.of('/chat').adapter;
+
         if(room.max <= rooms.get(roomId)?.size){
             return res.redirect('/?error=허용 인원을 초과했습니다.')
         }
@@ -182,10 +188,16 @@ exports.enterGlimpse = async(req, res, next) => {
 
 exports.removeRoom = async(req, res, next) =>{
     try{
-        const { id } = req.params;
+        const { id } = req.params; //roomId
         const { password } = req.body; 
         
         console.log(`removeRoom id = ${id}/${password}`);
+
+        //룸에 접속한 인원이 있으면 삭제할 수 없음
+        if(checkExistAttendeesInTheRoom(req, id) === true){
+            console.log(`checkExistAttendeesInTheRoom = true`)
+            return res.status(201).json({message:'채널에 참석자가 있습니다.'});
+        }
 
         if(id){
             const result = await Room.updateOne(
@@ -201,6 +213,10 @@ exports.removeRoom = async(req, res, next) =>{
                 console.log(`방(${id}) 상태가 'off'로 변경되었습니다.`);
                 return res.status(200).json({message:'방이 삭제 되었습니다.'});
             }
+
+            const removed = await removeRoomInfo(req, id);
+            console.log(`removeRoomInfo : ${removed}`);
+
         }
         return res.status(404).json({message:'방 정보가 없습니다.'});
     }catch(err){
@@ -615,3 +631,37 @@ async function getChatAttandeeSocketId(req, roomId, userId){
 
     return null;
 } 
+
+async function removeRoomInfo(req, roomId){
+    const redisClient = req.app.get('redisClient');
+
+    if(redisClient){
+        const result = await removeChattingRoomInfo(redisClient, roomId);
+
+        console.log(`removeRoomInfo = ${result}`);
+        return result;
+    }
+    else{
+        console.log(`Redis Client Not Exist`);
+    }
+
+    return 0;
+} 
+
+
+async function checkExistAttendeesInTheRoom(req, roomId){
+    try{
+        const io = req.app.get('io');
+        const { rooms } = io.of('/chat').adapter;
+        const room = rooms.get(roomId);
+
+        const attendeesCount = room ? room.size : 0;
+        console.log(`checkExistAttendeesInTheRoom:${roomId} 에 연결된 소켓 수:`, attendeesCount);
+
+        return attendeesCount > 0 ? true : false;
+        
+    }catch(err){
+        console.log(`checkExistAttendeesInTheRoom ${err}`)
+    }
+    return false;
+}
