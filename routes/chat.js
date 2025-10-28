@@ -1,14 +1,16 @@
 const path = require('path');
 const router = require('express').Router({ mergeParams: true });
-const { enterRoom, sendChat, broadcastChat, sendGif, whisperChat, leave, removeRoom} = require(path.join(__dirname, '..', 'controllers'));
+const { enterRoom, sendChat, broadcastChat, sendGif, whisperChat, leave, removeRoom, enterIntoTheChat} = require(path.join(__dirname, '..', 'controllers'));
 const upload = require(path.join(__dirname, '..', 'middlewares', 'upload')); // multer 설정(이미 만드신 것)
 
 
 router.route('/')
-    .get(enterRoom);
-
+    .get(enterRoom)
+    .delete(removeRoom);
+    
 router.route('/chat')
-    .post(sendChat);
+    .post(sendChat)
+    .put(enterIntoTheChat)
 
 router.route('/broadcastchat')
     .post(broadcastChat);
@@ -25,9 +27,7 @@ router.route('/leave')
 router.route('/leave')
     .post(leave);
 
-router.route('/delete/:password')
-    .get(removeRoom);
-
+    
 
 module.exports = router;
 

@@ -3,7 +3,7 @@ const { col } = require('sequelize');
 const Room = require(path.join(__dirname, '..', 'schemas', 'room'));
 const Chat = require(path.join(__dirname, '..', 'schemas', 'chat'));
 const Friendship = require(path.join(__dirname, '..', 'schemas', 'friendShip'));
-const {getSid, addAttendee, removeAttendee} = require(path.join(__dirname, 'redisController'));
+const {getSid, addAttendee, removeAttendee, updateAttendeeSocketId} = require(path.join(__dirname, 'redisController'));
 require('dotenv').config();
 
 
@@ -182,10 +182,10 @@ exports.enterGlimpse = async(req, res, next) => {
 
 exports.removeRoom = async(req, res, next) =>{
     try{
-        const id = req.params.id;
-        const password = req.params.password;
+        const { id } = req.params;
+        const { password } = req.body; 
         
-        console.log(`removeRoom ${id}/${password}`);
+        console.log(`removeRoom id = ${id}/${password}`);
 
         if(id){
             const result = await Room.updateOne(
@@ -194,18 +194,18 @@ exports.removeRoom = async(req, res, next) =>{
             );
 
             if (result.matchedCount === 0) {
-                return res.status(404).send('일치하는 방이 없습니다.');
+                return res.status(404).json({message:'일치하는 방이 없습니다.'});
             }
 
             if (result.modifiedCount === 1) {
                 console.log(`방(${id}) 상태가 'off'로 변경되었습니다.`);
-                return res.status(200).send('ok');
+                return res.status(200).json({message:'방이 삭제 되었습니다.'});
             }
         }
-        return res.status(500).send('server error');
+        return res.status(404).json({message:'방 정보가 없습니다.'});
     }catch(err){
-        console.log(err);
-        next(err);
+        console.log(`removeRoom error = ${err}`);
+        return res.status(404).json({message:err});
     }
 }
 
@@ -387,6 +387,27 @@ exports.leave = async(req, res, next) =>{
     }
 }
 
+exports.enterIntoTheChat = async(req, res, next) =>{
+    const roomId = req.params.id;
+    const {userId, socketId} = req.body;
+
+    console.log(`enterIntoTheChat:roomId = ${roomId}/${socketId}`);
+
+    try{
+        if(roomId && userId && socketId){
+            const result = updateUserSocketIdInRoom(req, roomId, userId, socketId);
+            console.log(`enterIntoTheChat : 결과 - ${result}`);
+
+            return res.status(200).json({message:'접속 정보를 수정 완료하였습니다.'})
+        }
+        return res.status(400).json({message:'잘못된 요청 입니다.'})
+    }catch(err){
+        console.log(`enterIntoTheChat: error ${err}`);
+        next(err);
+    }
+
+}
+
 const generateRandomColor = async() => {
     // 0부터 16777215 (FFFFFF의 10진수 값) 사이의 정수를 생성
     const randomHex = Math.floor(Math.random() * 16777215).toString(16);
@@ -538,3 +559,22 @@ async function leaveTheRoom(req, roomId, userId){
         });
     }
 }
+
+
+async function updateUserSocketIdInRoom(req, roomId, userId, socketId){
+    const redisClient = req.app.get('redisClient');
+
+    if(redisClient){
+        updateAttendeeSocketId(redisClient, roomId, String(userId), String(socketId), (err, ok) => {
+            if (err) console.error(err);
+            else console.log('완료');
+
+            return ok;
+        });
+    }
+    else{
+        console.log(`Redis Client Not Exist`);
+    }
+
+    return false;
+} 

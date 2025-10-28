@@ -196,6 +196,7 @@
 
 </script>
 <script>
+  // /chat 소켓에 접속
   const socket = io('/chat', { path: '/socket.io', withCredentials: true });
   const chatList = document.querySelector('#chat-list');
   const whisperForm = document.querySelector('#whisperchat-form');
@@ -211,6 +212,17 @@
 
   socket.on('connect', () => {
     const roomId = new URL(location).pathname.split('/').at(-1);
+    const socketId = socket.id;
+    
+    axios.put(`/room/${roomId}/chat`, { userId: myUser.id, socketId: socketId })
+        .then(() => { 
+          console.log(`room attendee ${myUser.id}/${roomId} socket info updated: ${socketId}`); 
+        })
+        .catch((err)=>{
+          alert(err);
+          console.log(err);
+        });
+
     socket.emit('join', {roomId, user:myUser});
   });
 
@@ -584,13 +596,19 @@ socket.on('broadcastchat', data => {
     // 2) 일반 메시지의 "이름(소켓ID)" 클릭
     const socketSpan = e.target.closest('.socket-id-display');
     if (socketSpan) {
-      const targetId = socketSpan.dataset.socketId || '';
+      let targetId = socketSpan.dataset.socketId || '';
       const fromUser = socketSpan.textContent?.trim().split(' (')[0] || '';
       const fromUserId = socketSpan.dataset.fromuserId || '';
 
       if (!targetId) {
-      //  alert('유효한 소켓 ID가 없습니다. :' + fromUserId);
-        return;
+        //  alert('유효한 소켓 ID가 없습니다. :' + fromUserId);
+        //redis에서 정보를 확인한다.
+        const roomId = room._id;
+        axios.post(`/room/${roomId}chat`, { userId: fromUserId })
+          .then((data) => { targetId = data.socketId; })
+          .catch(console.error);
+        
+        if(!targetId) return;
       }
       
       const whisperForm = document.querySelector('#whisperchat-form');
@@ -897,9 +915,6 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
       if (!btn) return;
       
       const action = btn.dataset.action;
-
-      // 안전 가드
-      //if (!ctx.socketId) { hideMenu(); return; }
 
       if (action === 'whisper') {
         if (!ctx.socketId) { hideMenu(); return; }

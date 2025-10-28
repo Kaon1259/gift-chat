@@ -36,9 +36,11 @@
           <% rooms.forEach((room) =>{ 
                const current = room.current || (room.members ? room.members.length : 0); 
                const created = room.createdAt ? new Date(room.createdAt) : null;
-               const isMine  = user._id.toString() === room.ownerId.toString() ? true : false;
+               const userId = user._id ? user._id :'';
+               const roomOwnerId = room.ownerId ? room.ownerId :'';
+               const isMine  = userId.toString() === roomOwnerId.toString() ? true : false;
 
-               console.log(`room isMine: ${isMine} ${user._id} : ${room.ownerId}`);
+               console.log(`room isMine: ${isMine} ${user._id} : ${room.title} ${room.owner} ${room.ownerId} ${room.status}`);
 
                // 상대시간(일/시간/분 전)
                function rel(created) {
@@ -127,7 +129,9 @@
 
 <!-- socket.io는 레이아웃에 이미 포함되어 있지 않다면 아래 스크립트를 유지하세요 -->
 <script src="/socket.io/socket.io.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 <script>
+  //room socket에 connection
   const socket = io('/room', { path: '/socket.io' });
 
   // ===== 시간 포맷터 =====
@@ -271,18 +275,33 @@
   });
 
   // 방삭제 버튼
-  document.querySelector('#room-list tbody').addEventListener('click', function (e) {
+  document.querySelector('#room-list tbody').addEventListener('click', async function (e) {
     const btn = e.target.closest('.delete-btn');
     if (!btn) return;
 
+    let password = '';
     if (btn.dataset.password === 'true') {
-      const password = prompt('비밀번호를 입력하세요');
-      if(password){
-        location.href = '/room/' + btn.dataset.id + '/delete/' + btn.dataset.password;
+      password = prompt('비밀번호를 입력하세요');
+      
+      if(!password){
+        return;
       }
-    } else {
-      location.href = '/room/' + btn.dataset.id + '/delete/';
-    }
+    } 
+
+    const roomId = btn.dataset.id;
+    await axios.delete(`/room/${encodeURIComponent(roomId)}/`,{data :{password}})
+      .then((res)=>{
+        const {message} = res.data;
+        alert(message);
+
+        if(res.status === 200){
+          const row = btn.closest('tr');
+          if (row) row.remove();
+        }
+      })
+      .catch((err)=>{
+        alert(err);
+      })
   });
 
   // 에러 메시지 알림

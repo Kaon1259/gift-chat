@@ -70,7 +70,7 @@ exports.removeAttendee = async (store, roomId, attendeeId, callback) => {
 };
 
 
-exports.updateSocketId = async (store, roomId, attendeeId, socketId, callback) => {
+exports.updateAttendeeSocketId = async (store, roomId, attendeeId, socketId, callback) => {
 
   try {
       if (!store) {
@@ -85,25 +85,25 @@ exports.updateSocketId = async (store, roomId, attendeeId, socketId, callback) =
       if (!exists) {
             store.hSet(key, String(attendeeId), String(socketId))
            .then(() => {
-            console.log(`updateSocketId: ${attendeeId}`);
-            callback(null, true);
+              console.log(`updateSocketId: ${attendeeId}`);
+              callback(null, true);
             })
             .catch(err => {
                 console.error('updateSocketId error:', err);
-                callback(err);
+                callback(err, false);
             })
-      }
+      }else{
 
-      hSet(key, String(attendeeId), String(socketId))
-         .then(() => {
-            console.log(`updateSocketId: ${attendeeId}`);
-            callback(null, true);
-        })
-        .catch(err => {
-            console.error('updateSocketId error:', err);
-            callback(err);
-        }
-    );
+        store.hSet(key, String(attendeeId), String(socketId))
+          .then(() => {
+              console.log(`updateSocketId: ${attendeeId}`);
+              callback(null, true);
+          })
+          .catch(err => {
+              console.error('updateSocketId error:', err);
+              callback(err);
+          })
+      }
   } catch (err) {
     console.error('updateSocketId error:', err);
     callback(err);
