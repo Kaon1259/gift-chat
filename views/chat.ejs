@@ -59,6 +59,7 @@
             <!-- 귓속말 -->
             <div class="meta">[귓속말] <%= from || sock %> → <%= isMine ? (to || '상대') : '나' %></div>
             <div class="text"><%= chat.chat %></div>
+            
             <% if (!isMine) { %>
               <div class="actions">
                 <button type="button" class="btn btn-light whisper-reply"
@@ -69,6 +70,7 @@
                   data-fromuser-id="<%= fromUserId %>">답장</button>
               </div>
             <% } %>
+            
           <% } else if (isBroadcast) { %>
             <!-- 방송: 전체 폭 + 외치기 아이콘 -->
             <div class="meta">
@@ -88,7 +90,11 @@
             <!-- 일반(local) -->
             <% if (!isSystem) { %>
               <div class="meta">
-                <span class="name socket-id-display" data-socket-id="<%= sock %>" data-fromuser-id="<%= fromUserId %>" data-isfriend="<%=isFriend%>" data-friend-status="<%= friendStatus %>">
+                <span class="name socket-id-display" 
+                            data-socket-id="<%= sock %>" 
+                            data-fromuser-id="<%= fromUserId %>" 
+                            data-isfriend="<%=isFriend%>" 
+                            data-friend-status="<%= friendStatus %>">
                   <%= from || 'Guest' %> <%= shortSock ? '(' + shortSock + ')' : '' %>
                 </span>
                 <% if (isFriend) { %>
@@ -300,7 +306,6 @@ async function checkIsFriend(requester, addressee){/** 1) 수락된 친구 목�
   return data.isFriend;
 };
 
-
   // 일반/실시간 채팅
 socket.on('chat', function (data) {
   // 서버에서 오는 형태에 따라 방어적으로 꺼내기
@@ -397,98 +402,6 @@ socket.on('chat', function (data) {
   chatList.scrollTop = chatList.scrollHeight;
 });
 
-function displayChat(
-        doc,
-        fromUser,
-        fromUserId,
-        isMine,
-        isFriend,
-        friendStatus){
-
-  //alert(`friendStatus :${friendStatus}`);
-
-  const item = document.createElement('div');
-  item.className = 'message ' + (isMine ? 'mine' : 'other');
-
-  // 아바타 (내 메시지는 숨김 유지)
-  if (!isMine) {
-    const avatar = document.createElement('div');
-    avatar.className = 'avatar';
-    avatar.style.setProperty('--avatar-color', doc.color || '#888'); // CSS 변수 사용 시
-    avatar.style.backgroundColor = doc.color || '#888';              // 배경 직접 지정도 유지
-    avatar.textContent = String(fromUser || 'U').charAt(0).toUpperCase();
-
-    // ✅ 친구 아이콘 오버레이
-    if (isFriend) {
-      const friendImg = document.createElement('img');
-      friendImg.src = '/images/free-icon-friend.png';
-      friendImg.alt = 'friend';
-      friendImg.className = 'friend-icon';
-      friendImg.dataset.fromuserId   = fromUserId;
-      friendImg.dataset.user         = fromUser;
-      friendImg.isFriend             = isFriend;
-      friendImg.dataset.friendStatus = friendStatus;
-      avatar.appendChild(friendImg);
-    }
-
-    item.appendChild(avatar);
-  }
-
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-
-  // 이름(소켓ID)
-  const name = document.createElement('span');
-  name.className = 'name socket-id-display';
-  name.dataset.socketId   = data.socketId || '';
-  name.dataset.fromuserId = fromUserId || '';
-  name.dataset.isfriend   = String(isFriend);
-  name.dataset.friendStatus = friendStatus || '';
-  name.textContent = `${fromUser} ${data.socketId ? '(' + String(data.socketId).substring(0,4) + '...)' : ''}`;
-  meta.appendChild(name);
-
-  // ✅ 친구 배지 추가
-  if (isFriend) {
-    const badge = document.createElement('span');
-    badge.className = 'badge badge-friend';
-    badge.title = friendStatus; // 예: accepted/requested 등
-    badge.dataset.fromuserId   = fromUserId || '';
-    badge.dataset.user         = fromUser;
-    badge.dataset.isfriend     = 'true';
-    badge.dataset.friendStatus = friendStatus;
-    badge.textContent = '친구';
-    meta.appendChild(badge);
-  }
-
-  // 타입 배지(기존 로직 유지)
-  const typeBadge = document.createElement('span');
-  typeBadge.className = 'badge type-local';
-  typeBadge.textContent = '일반';
-  meta.appendChild(typeBadge);
-
-  bubble.appendChild(meta);
-
-  // 본문
-  if (doc.gif) {
-    const img = document.createElement('img');
-    img.className = 'bubble-gif';
-    img.src = '/images/free-icon-friend.png'; //+ doc.gif;
-    img.alt = 'gif';
-    bubble.appendChild(img);
-  } else if (doc.chat) {
-    const text = document.createElement('div');
-    text.className = 'text';
-    text.textContent = doc.chat;
-    bubble.appendChild(text);
-  }
-
-  item.appendChild(bubble);
-  chatList.appendChild(item);
-  chatList.scrollTop = chatList.scrollHeight;
-}
 
   // 방송 채팅
 socket.on('broadcastchat', data => {
@@ -565,14 +478,14 @@ socket.on('broadcastchat', data => {
   item.scrollIntoView({ block: 'end' });
 });
 
-  const whisperTargetUserInput = document.querySelector('#whisper-target-user');
-  
-  function openWhisperForm(targetId, fromUser) {
+function openWhisperForm(targetId, fromUser) {
     if (!targetId) return;
+
     if (targetId === socket.id) {
       alert('자기 자신에게는 귓속말을 보낼 수 없습니다.');
       return;
     }
+    const whisperTargetUserInput = document.querySelector('#whisper-target-user');
     const shortSock = targetId.substring(0, 4) + '...';
     whisperTargetSocketId.value = targetId;
     whisperTargetDisplay.textContent = fromUser ? `${fromUser} (${shortSock})` : shortSock;
@@ -581,13 +494,31 @@ socket.on('broadcastchat', data => {
     whisperTargetUserInput.value = fromUser || '';
 
     whisperChatInput.focus();
-  }
+}
 
-  chatList.addEventListener('click', (e) => {
+//왼쪽 마우스 클릭(버블)
+  chatList.addEventListener('click', async(e) => {
     // 1) "답장" 버튼 (가장 우선)
     const replyBtn = e.target.closest('.whisper-reply');
     if (replyBtn) {
-      const targetId = replyBtn.dataset.socketId || '';
+      let targetId = (replyBtn.dataset.socketId ?? '').trim();
+        
+      if (!targetId || targetId === '' || targetId === 'undefined' || targetId === 'null') {
+        const roomId = new URL(location).pathname.split('/').at(-1);
+        const fromUserId = replyBtn.dataset.fromuserId || '';
+
+        try {
+          const { data } = await axios.post(`/room/${roomId}/socket`, { userId: fromUserId });
+          targetId = data.socketId;
+        } catch (err) {
+          console.error(err);
+        }
+
+        if(!targetId) return;
+
+        replyBtn.dataset.socketId = targetId;
+      }
+
       const fromUser = replyBtn.dataset.user || '';
       openWhisperForm(targetId, fromUser);
       return; // 더 이상 전파 처리 X
@@ -595,36 +526,31 @@ socket.on('broadcastchat', data => {
 
     // 2) 일반 메시지의 "이름(소켓ID)" 클릭
     const socketSpan = e.target.closest('.socket-id-display');
+  
     if (socketSpan) {
-      let targetId = socketSpan.dataset.socketId || '';
       const fromUser = socketSpan.textContent?.trim().split(' (')[0] || '';
       const fromUserId = socketSpan.dataset.fromuserId || '';
-
-      if (!targetId) {
-        //  alert('유효한 소켓 ID가 없습니다. :' + fromUserId);
-        //redis에서 정보를 확인한다.
-        const roomId = room._id;
-        axios.post(`/room/${roomId}chat`, { userId: fromUserId })
-          .then((data) => { targetId = data.socketId; })
-          .catch(console.error);
+      let targetId = (socketSpan.dataset.socketId ?? '').trim();
+      
+      if (!targetId || targetId === '' || targetId === 'undefined' || targetId === 'null') {
+       const roomId = new URL(location).pathname.split('/').at(-1);
         
+        try {
+          const { data } = await axios.post(`/room/${roomId}/socket`, { userId: fromUserId });
+          targetId = data.socketId;
+        } catch (err) {
+          console.error(err);
+        }
+
         if(!targetId) return;
+
+        socketSpan.dataset.socketId = targetId;
       }
       
       const whisperForm = document.querySelector('#whisperchat-form');
       const whisperTargetUser = whisperForm.querySelector('#whisper-target-user');
       whisperTargetUser.value = fromUser || '';  // 예: 귓속말 대상의 닉네임
 
-      openWhisperForm(targetId, fromUser);
-      return;
-    }
-
-    // 3) 수신한 귓속말의 버블 클릭
-    const whisperMsg = e.target.closest('.message.whisper-in');
-    if (whisperMsg && whisperMsg.querySelector('.bubble')?.contains(e.target)) {
-      const targetId = whisperMsg.dataset.replySocketId || '';
-      const fromUser = whisperMsg.dataset.replyUser || '';
-      const fromUserId = whisperMsg.dataset.replyfromuserId || '';
       openWhisperForm(targetId, fromUser);
       return;
     }
@@ -789,7 +715,6 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
 
 
   (function() {
-    const chatList = document.getElementById('chat-list');
     const menu = document.getElementById('msg-context');
 
     /** 현재 컨텍스트 대상 저장 */
@@ -798,16 +723,16 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
     /** 대상 추출: 우클릭한 요소 기준으로 socketId/닉네임 찾기 */
     function extractTargetInfo(target) {
       // 1) 귓속말로 온 메시지의 루트 (수신)
-      const whisperIn = target.closest('.message.whisper-in');
-      if (whisperIn && (whisperIn.dataset.replySocketId || whisperIn.dataset.replyUser || whisperIn.dataset.replyfromuserId)) {
-        return {
-          socketId: whisperIn.dataset.replySocketId || '',
-          user: whisperIn.dataset.replyUser || '',
-          userId: whisperIn.dataset.replyfromuserId || '',
-          isFriend: whisperIn.dataset.isfriend === 'true' || false,
-          friendStatus: whisperIn.dataset.friendStatus
-        };
-      }
+      // const whisperIn = target.closest('.message.whisper-in');
+      // if (whisperIn && (whisperIn.dataset.replySocketId || whisperIn.dataset.replyUser || whisperIn.dataset.replyfromuserId)) {
+      //   return {
+      //     socketId: whisperIn.dataset.replySocketId || '',
+      //     user: whisperIn.dataset.replyUser || '',
+      //     userId: whisperIn.dataset.replyfromuserId || '',
+      //     isFriend: whisperIn.dataset.isfriend === 'true' || false,
+      //     friendStatus: whisperIn.dataset.friendStatus
+      //   };
+      // }
 
       // 2) 일반/방송 메시지의 "이름(소켓ID)" 영역
       const sockSpan = target.closest('.socket-id-display');
@@ -866,8 +791,7 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
     }
 
     /** 우클릭 열기 */
-    chatList.addEventListener('contextmenu', (e) => {
-      // 우클릭 기본 메뉴 중단
+  chatList.addEventListener('contextmenu', (e) => {
       e.preventDefault();
 
       // 대상 정보 추출
@@ -878,8 +802,6 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
         return;
       }
 
-      //alert(`info : ${info.isFriend} : ${info.friendStatus}`);
-
       // socketId가 없거나 내 메시지(내 소켓)라면 메뉴 띄우지 않음
       if (!info.socketId && !info.fromUserId) { hideMenu(); return; }
 
@@ -889,9 +811,7 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
           return; 
         }
         else{ //다른 사람인 경우
-          //alert(`socket exist: isFriend ${info.isFriend}`);
           toggleButton('friend', !info.isFriend);
-
           toggleButton('whisper', true);  //귓속말 보이기
         }
       }else{
@@ -957,13 +877,12 @@ document.querySelector('#whisperchat-form').addEventListener('submit', function 
     document.addEventListener('click', (e) => {
       if (!menu.hidden && !menu.contains(e.target)) hideMenu();
     });
+
     document.addEventListener('scroll', hideMenu, true);
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') hideMenu();
     });
 
-    /** 모바일 롱프레스 대응(선택) */
-    // 필요하면 터치 길게 눌러서 contextmenu와 동일 동작하도록 구현할 수 있습니다.
   })();
 
   function toggleButton(btnName, fshow= false){

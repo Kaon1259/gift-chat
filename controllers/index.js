@@ -3,7 +3,7 @@ const { col } = require('sequelize');
 const Room = require(path.join(__dirname, '..', 'schemas', 'room'));
 const Chat = require(path.join(__dirname, '..', 'schemas', 'chat'));
 const Friendship = require(path.join(__dirname, '..', 'schemas', 'friendShip'));
-const {getSid, addAttendee, removeAttendee, updateAttendeeSocketId} = require(path.join(__dirname, 'redisController'));
+const {getSid, addAttendee, removeAttendee, updateAttendeeSocketId, getAttandeeSocketId} = require(path.join(__dirname, 'redisController'));
 require('dotenv').config();
 
 
@@ -408,6 +408,26 @@ exports.enterIntoTheChat = async(req, res, next) =>{
 
 }
 
+exports.getChatAttendeeSocket = async(req, res, next) =>{
+    const roomId = req.params.id;
+    const {userId} = req.body;
+
+    console.log(`getChatAttendeeSocket:roomId = ${roomId}/${userId}`);
+
+    try{
+        if(roomId && userId ){
+            const socketId = await getChatAttandeeSocketId(req, roomId, userId);
+            console.log(`getChatAttendeeSocket : 결과 - ${socketId}`);
+
+            return res.status(200).json({socketId})
+        }
+        return res.status(400).json({data:'잘못된 요청 입니다.'})
+    }catch(err){
+        console.log(`enterIntoTheChat: error ${err}`);
+        next(err);
+    }
+}
+
 const generateRandomColor = async() => {
     // 0부터 16777215 (FFFFFF의 10진수 값) 사이의 정수를 생성
     const randomHex = Math.floor(Math.random() * 16777215).toString(16);
@@ -577,4 +597,21 @@ async function updateUserSocketIdInRoom(req, roomId, userId, socketId){
     }
 
     return false;
+} 
+
+
+async function getChatAttandeeSocketId(req, roomId, userId){
+    const redisClient = req.app.get('redisClient');
+
+    if(redisClient){
+        const socketId = await getAttandeeSocketId(redisClient, roomId, String(userId));
+
+        console.log(`getChatAttandeeSocketId = ${socketId}`);
+        return socketId;
+    }
+    else{
+        console.log(`Redis Client Not Exist`);
+    }
+
+    return null;
 } 

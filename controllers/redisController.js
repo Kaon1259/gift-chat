@@ -109,3 +109,23 @@ exports.updateAttendeeSocketId = async (store, roomId, attendeeId, socketId, cal
     callback(err);
   }
 };
+
+exports.getAttandeeSocketId = async(store, roomId, attendeeId) => {
+  try {
+      if (!store) {
+        console.error('Redis client not found');
+        return null;
+      }
+      
+      const key = `room:${roomId}:attendees`;
+      const socketId = await store.hGet(key, String(attendeeId))
+
+      console.log(`getAttandeeSocketId : ${socketId}`);
+
+      return socketId;
+      }
+  catch (err) {
+    console.error('getAttandeeSocketId error:', err);
+  }
+  return null;
+}
