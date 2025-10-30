@@ -19,13 +19,13 @@ exports.connectKafka = async (app)=>{
         const admin = kafka.admin();
         app.set('kafkaAdmin', admin);
         
-        const producer = kafka.producer();
+        const producer = kafka.producer({ allowAutoTopicCreation: false });
         app.set('kafkaProducer', producer);
-
+        
         const isProducerConnected = connectKafkaProducer(producer);
         app.set('kafkaProducerIsConnected', isProducerConnected);
 
-        // await createTopicWithAdmin(admin, process.env.TOPIC_CHAT_REGISTRATION);
+        //await createTopicWithAdmin(admin, process.env.KAFKA_TOPIC_CHAT_REGISTRATION);
 
         // for(i=0; i < 10; i++){
         //     await addTopic(app, process.env.TOPIC_CHAT_REGISTRATION, generateUniqueId(), generateUniqueId());
@@ -165,3 +165,5 @@ function generateUniqueId() {
 //     }
 //     process.exit(0);
 // });
+
+
