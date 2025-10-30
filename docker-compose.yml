@@ -1,0 +1,29 @@
+version: '3.8' # 최신 버전을 사용합니다.
+
+services:
+  # 서비스 이름을 my_app으로 정의합니다.
+  my_gift_chat:
+    # 1. 빌드 컨텍스트 지정
+    # Dockerfile이 현재 디렉토리(.)에 있음을 나타내고,
+    # 해당 Dockerfile을 사용하여 이미지를 빌드합니다.
+    build: . 
+
+    # 2. 포트 매핑 (EXPOSE 8080에 해당)
+    # 호스트 PC의 8080 포트를 컨테이너 내부의 8080 포트와 연결합니다.
+    ports:
+      - "8080:8080"
+      
+    # 3. 작업 디렉토리 설정 (WORKDIR /usr/src/app에 해당)
+    # build 컨텍스트 내의 Dockerfile에 정의되어 있으므로, 여기서는 생략 가능하지만,
+    # 명시적으로 다시 정의할 수도 있습니다. (Dockerfile이 우선 적용됩니다.)
+    # working_dir: /usr/src/app 
+
+    # 4. 컨테이너가 시작될 때 실행할 명령어 (CMD ["node", "app.js"]에 해당)
+    # Dockerfile에 CMD가 이미 정의되어 있으므로 여기서는 생략합니다.
+    # 만약 Dockerfile의 CMD를 덮어쓰려면 여기에 command: [ ... ]를 추가합니다.
+    
+    # 5. 항상 재시작 설정 (선택 사항: 서비스 안정성 확보)
+    restart: always
+
+    # 6. 컨테이너 이름 지정 (선택 사항)
+    container_name: nodejs_gif_chat
